@@ -1,0 +1,278 @@
+では、あなたの 同期再生 Webサーバ（Tomcat + Servlet + WebSocket） の構成に合わせて、
+そのまま仕様書として使える目次テンプレート を作ります。
+
+これは 実装済みクラス（ReplayEngine / Coordinator / WsHub / Servlet / Repository 等）と一致する構成 にしてあります。
+実際のソースと対応しやすい形です。
+
+Webサーバ用ソフトウェア仕様書（テンプレート）
+1. 文書情報
+項目	内容
+文書名	同期再生 Webサーバ ソフトウェア仕様書
+対象システム	操作履歴同期再生システム
+対象モジュール	Webサーバアプリケーション
+版数	1.0
+作成日	YYYY/MM/DD
+作成者	XXX
+備考	Tomcat上で動作するJava Webアプリケーション
+改訂履歴
+版数	日付	内容	担当
+1.0	YYYY/MM/DD	初版作成	XXX
+2. システム概要
+2.1 目的
+
+本システムは、データベースに保存された操作履歴をもとに、
+複数クライアントのブラウザ画面に対して 同一操作の同期再生 を行うWebサーバ機能である。
+
+操作画面から送信される再生制御要求を受け取り、
+WebSocketを用いて接続中のクライアントへ再生状態を配信する。
+
+2.2 システム構成
+構成要素
+構成	役割
+操作画面ブラウザ	再生制御操作
+表示画面ブラウザ	リプレイ画面表示
+Tomcat Webサーバ	再生制御および状態管理
+DB	操作履歴データ保存
+2.3 システム構成図
+
+（ここに図を入れる）
+
+例
+
+操作画面
+   │HTTP
+   ▼
+Tomcat Webアプリ
+   │
+   │WebSocket
+   ▼
+表示ブラウザA
+表示ブラウザB
+表示ブラウザC
+
+        │
+        ▼
+       DB
+3. 機能一覧
+機能ID	機能名	概要
+REP-01	再生開始	操作履歴の再生開始
+REP-02	再生停止	再生停止
+REP-03	早送り	再生速度変更
+REP-04	巻き戻し	再生位置変更
+REP-05	指定時刻移動	任意時刻へジャンプ
+REP-06	状態取得	現在の再生状態取得
+REP-07	WebSocket接続	表示クライアント接続
+REP-08	途中参加同期	現在状態配信
+4. システム起動処理
+4.1 起動時初期化
+
+Webアプリケーション起動時に以下の処理を実行する。
+
+クラス	役割
+AppInitListener	サーバ初期化
+ReplayCoordinator	再生状態管理
+ReplayEngine	再生時間管理
+WsHub	WebSocketセッション管理
+処理フロー
+Tomcat起動
+   │
+   ▼
+AppInitListener
+   │
+   ├ ReplayCoordinator生成
+   ├ ReplayEngine生成
+   └ WsHub生成
+
+生成したインスタンスは ServletContextに保持する。
+
+5. 通信仕様
+5.1 HTTP API仕様
+
+操作画面からの制御要求を受け付ける。
+
+API	説明
+/api/replay/play	再生開始
+/api/replay/pause	停止
+/api/replay/seek	再生位置変更
+/api/replay/state	現在状態取得
+5.1.1 再生開始API
+URL
+POST /api/replay/play
+リクエストJSON
+{
+  "roomId": "room1",
+  "startTime": "2026-03-10T10:00:00Z"
+}
+レスポンス
+{
+  "result": "ok"
+}
+5.2 WebSocket通信仕様
+接続URL
+ws://host/ws/replay
+接続時処理
+
+クライアント接続
+
+WsHubへ登録
+
+現在状態を送信
+
+WebSocket送信メッセージ
+{
+  "type": "replay_state",
+  "playing": true,
+  "currentTime": "2026-03-10T10:00:05Z",
+  "speed": 1.0,
+  "vduStates": []
+}
+6. 再生処理仕様
+6.1 再生制御フロー
+操作画面
+   │HTTP
+   ▼
+ReplayControlServlet
+   │
+   ▼
+ReplayCoordinator
+   │
+   ▼
+ReplayEngine
+   │
+   ▼
+WsHub.broadcast()
+   │
+   ▼
+クライアント全体へ配信
+6.2 再生処理
+
+操作履歴をDBから取得
+
+再生状態を更新
+
+現在時刻を計算
+
+WebSocket配信
+
+7. 状態管理仕様
+
+サーバは再生状態をメモリ上で管理する。
+
+状態	内容
+再生状態	再生 / 停止
+現在位置	再生位置
+再生速度	1x / 2x 等
+開始時刻	再生開始基準
+7.1 ReplayState
+
+全体再生状態を保持する。
+
+項目	説明
+playing	再生状態
+currentTime	現在再生時刻
+speed	再生速度
+7.2 ReplayVduState
+
+VDUごとの状態を保持する。
+
+項目	説明
+vduId	VDU識別
+lastAction	最後の操作
+screenState	画面状態
+
+※再生状態自体は全VDU共通である。
+
+8. DBアクセス仕様
+
+使用テーブル
+
+テーブル	用途
+event_log	操作履歴
+取得条件
+
+指定期間
+
+VDU ID
+
+操作種別
+
+ソート
+ORDER BY event_time
+9. クラス構成
+9.1 パッケージ構成
+com.example.replay
+ ├ common
+ ├ controller
+ ├ service
+ ├ repository
+ ├ ws
+ ├ dto
+ ├ model
+ └ entity
+9.2 クラス一覧
+クラス	役割
+AppInitListener	アプリ初期化
+ReplayControlServlet	HTTP制御API
+ReplayWsEndpoint	WebSocket
+ReplayCoordinator	再生状態管理
+ReplayEngine	再生時間管理
+ReplaySessionService	セッション管理
+ReplayResponseService	レスポンス生成
+ReplayEventRepository	DBアクセス
+WsHub	WebSocket配信管理
+10. エラー処理
+エラー	処理
+DB接続失敗	ログ出力
+不正パラメータ	HTTP400
+WebSocket送信失敗	セッション削除
+11. ログ仕様
+
+ログ出力項目
+
+roomId
+
+sessionId
+
+action
+
+requestId
+
+errorMessage
+
+12. 非機能仕様
+項目	内容
+同時接続数	最大100
+再生周期	1秒
+通信	WebSocket
+Java	Java8
+サーバ	Tomcat
+13. 制約事項
+
+再生状態は全VDU共通
+
+操作結果はVDUごとに異なる
+
+DB履歴の順序を前提とする
+
+14. 付録
+JSON一覧
+用語
+用語	意味
+VDU	表示端末
+Replay	操作履歴再生
+実務的に重要なポイント
+
+このテンプレートは 実装レビュー用仕様書として通る構成 にしています。
+
+理由
+
+クラス責務が追える
+
+APIが明確
+
+WebSocket仕様が明確
+
+状態管理が明確
+
+もし希望があれば、次に
+あなたの改修版ソース（ReplayEngine / Coordinator / WsHub 等）に完全一致させた

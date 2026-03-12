@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>同期再生 操作ウィンドウ</title>
+  <style>
+    body { font-family: sans-serif; margin: 16px; }
+    .row { margin-bottom: 12px; }
+    .label { display: inline-block; width: 140px; }
+    .btn-group button { margin-right: 8px; margin-bottom: 8px; padding: 8px 14px; }
+    .status-box {
+      margin-top: 16px;
+      padding: 12px;
+      border: 1px solid #ccc;
+      background: #f7f7f7;
+    }
+  </style>
+</head>
+<body>
+  <h1>同期再生 操作ウィンドウ</h1>
+
+  <div class="row">
+    <span class="label">操作者名:</span>
+    <input type="text" id="operatorName" maxlength="50" placeholder="PC名または操作者名">
+  </div>
+
+  <div class="row">
+    <span class="label">表示日:</span>
+    <input type="date" id="targetDate">
+  </div>
+
+  <div class="row">
+    <span class="label">表示期間:</span>
+    <select id="periodHours">
+      <option value="4">4時間</option>
+      <option value="12">12時間</option>
+      <option value="24">24時間</option>
+    </select>
+  </div>
+
+  <div class="row">
+    <span class="label">開始時刻:</span>
+    <select id="startHour"></select>
+  </div>
+
+  <div class="row btn-group">
+    <button id="btnApply">条件反映</button>
+    <button id="btnPlay">再生</button>
+    <button id="btnStop">停止</button>
+    <button id="btnFastForward">早送り</button>
+    <button id="btnHead">先頭に戻る</button>
+    <button id="btnTail">最後尾に進む</button>
+  </div>
+
+  <hr>
+
+  <div class="row btn-group">
+    <button class="btnOpenVdu" data-vdu="1">VDU1</button>
+    <button class="btnOpenVdu" data-vdu="2">VDU2</button>
+    <button class="btnOpenVdu" data-vdu="3">VDU3</button>
+    <button class="btnOpenVdu" data-vdu="4">VDU4</button>
+  </div>
+
+  <div class="status-box">
+    <div>現在操作者: <span id="currentOperator">-</span></div>
+    <div>操作者IP: <span id="currentOperatorIp">-</span></div>
+    <div>状態: <span id="playStatus">-</span></div>
+    <div>開始日時: <span id="startDateTimeLabel">-</span></div>
+    <div>表示期間: <span id="periodHoursLabel">-</span></div>
+    <div>現在位置: <span id="currentReplayTimeLabel">-</span></div>
+    <div>速度: <span id="speedLabel">-</span></div>
+    <div>最終コマンド: <span id="lastCommandLabel">-</span></div>
+  </div>
+
+  <script src="js/replay_ws.js"></script>
+  <script src="js/replay_boot.js"></script>
+</body>
+</html>
