@@ -1,0 +1,116 @@
+1. WebSocket同期図（簡略版・仕様書向け）
+
+sequenceDiagram
+    autonumber
+
+    participant Control as 操作画面<br/>index.html
+    participant VDU as 表示画面<br/>vdu.html
+    participant Endpoint as ReplayWsEndpoint
+    participant Hub as WsHub
+    participant Coord as ReplayCoordinator
+    participant Engine as ReplayEngine
+    participant DB as event_log
+    participant C as CInvoker
+
+    Note over Control,VDU: 接続時
+
+    Control->>Endpoint: WebSocket接続
+    Endpoint->>Hub: クライアント登録
+    Hub-->>Control: 現在状態を初回送信
+
+    VDU->>Endpoint: WebSocket接続
+    Endpoint->>Hub: クライアント登録
+    Hub-->>VDU: VDU向け現在状態を初回送信
+
+    Note over Control,VDU: 操作時
+
+    Control->>Coord: 再生/停止/早送り/先頭/末尾/条件反映\n※実際はHTTP API経由
+    Coord->>Coord: ReplayState更新
+    Coord->>Hub: 最新状態を配信
+    Hub-->>Control: 全体状態JSON
+    Hub-->>VDU: 対象VDU状態JSON
+
+    Note over Control,VDU: 再生中
+
+    loop 1秒ごと
+        Engine->>DB: 対象時間範囲のイベント取得
+        DB-->>Engine: event_log
+        Engine->>C: イベント適用依頼
+        C-->>Engine: 適用結果
+        Engine->>Engine: ReplayState更新
+        Engine->>Hub: 最新状態を配信
+        Hub-->>Control: 全体状態JSON
+        Hub-->>VDU: 対象VDU状態JSON
+    end
+
+    Note over Control,VDU: 画面反映
+
+    Control->>Control: 状態欄更新
+    VDU->>VDU: 状態欄更新 + iframe更新
+    
+    仕様書用の説明文
+
+本システムでは、操作画面および表示画面が ReplayWsEndpoint に WebSocket 接続し、接続時に WsHub へ登録される。登録直後に現在の Replay 状態が送信されるため、途中参加したクライアントでも現在状態を即時に取得できる。
+その後、操作画面からの制御要求で ReplayCoordinator が状態更新を行った場合、および ReplayEngine が再生進行に伴って状態更新を行った場合に、WsHub が接続中クライアントへ最新状態を配信する。表示画面は受信した状態に応じて情報欄および iframe 表示内容を更新する。
+
+2. WebSocket同期図（一枚図版・レビュー用）
+
+flowchart LR
+
+    subgraph Browser側
+        C1[操作画面<br>index.html]
+        V1[VDU1画面<br>vdu.html]
+        V2[VDU2画面<br>vdu.html]
+        V3[VDU3画面<br>vdu.html]
+        V4[VDU4画面<br>vdu.html]
+    end
+
+    subgraph Tomcat側
+        HTTP[ReplayControlServlet / ReplayStateServlet]
+        WS[ReplayWsEndpoint]
+        HUB[WsHub]
+        COORD[ReplayCoordinator]
+        ENGINE[ReplayEngine]
+        STATE[ReplayState / ReplayVduState]
+        REPO[EventLogRepository]
+    end
+
+    DB[(event_log)]
+    CPROC[CInvoker<br>Socket / ProcessBuilder]
+
+    C1 -->|HTTP 制御要求| HTTP
+    HTTP --> COORD
+    COORD --> STATE
+    COORD --> HUB
+
+    C1 -->|WebSocket接続| WS
+    V1 -->|WebSocket接続| WS
+    V2 -->|WebSocket接続| WS
+    V3 -->|WebSocket接続| WS
+    V4 -->|WebSocket接続| WS
+
+    WS --> HUB
+    HUB -->|現在状態/更新状態配信| C1
+    HUB -->|VDU1状態配信| V1
+    HUB -->|VDU2状態配信| V2
+    HUB -->|VDU3状態配信| V3
+    HUB -->|VDU4状態配信| V4
+
+    ENGINE -->|1秒ごとに再生進行| STATE
+    ENGINE --> COORD
+    COORD --> REPO
+    REPO --> DB
+
+    COORD --> CPROC
+    CPROC --> COORD
+    COORD --> STATE
+    ENGINE --> HUB
+    
+    レビュー用の説明文
+
+Replay同期の中心はサーバ側の ReplayState である。
+操作画面は再生・停止・早送りなどの制御要求を HTTP で送信し、ReplayCoordinator が ReplayState を更新する。
+一方、操作画面および各VDU画面は WebSocket で ReplayWsEndpoint に接続しており、WsHub が接続中クライアントを管理する。
+状態更新後は WsHub が各クライアントに応じた状態JSONを配信するため、操作画面は全体状態を、各VDU画面は自分に対応した表示状態を受け取る。
+再生中は ReplayEngine が1秒ごとに対象時間範囲のイベントをDBから取得し、必要に応じて CInvoker を介してCプロセスへ適用依頼を行い、その結果を ReplayState に反映して再度 WebSocket 配信する。これにより、複数ブラウザ間の表示同期を実現している。
+    

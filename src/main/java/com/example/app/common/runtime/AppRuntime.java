@@ -4,6 +4,7 @@ import javax.sql.DataSource;
 
 import com.example.app.feature.replay.controller.ws.WsHub;
 import com.example.app.feature.replay.engine.ReplayEngine;
+import com.example.app.feature.replay.service.ReplayControlConfig;
 import com.example.app.feature.replay.service.ReplayCoordinator;
 import com.example.app.feature.replay.service.ReplayResponseService;
 import com.example.app.feature.replay.service.ReplaySessionService;
@@ -78,6 +79,9 @@ public final class AppRuntime {
      * </p>
      */
     private static ReplayCoordinator replayCoordinator;
+    
+    /** replay 用操作権制御設定 */
+    private static ReplayControlConfig replayControlConfig;
 
     /**
      * インスタンス化を禁止するための private コンストラクタです。
@@ -115,7 +119,8 @@ public final class AppRuntime {
             ReplaySessionService sessionService,
             ReplayResponseService responseService,
             ReplayEngine engine,
-            ReplayCoordinator coordinator) {
+            ReplayCoordinator coordinator,
+            ReplayControlConfig controlConfig) {
 
         // 共通 DataSource を保持
         dataSource = ds;
@@ -126,6 +131,7 @@ public final class AppRuntime {
         replayResponseService = responseService;
         replayEngine = engine;
         replayCoordinator = coordinator;
+        replayControlConfig = controlConfig;
     }
 
     /**
@@ -180,5 +186,9 @@ public final class AppRuntime {
      */
     public static ReplayCoordinator getReplayCoordinator() {
         return replayCoordinator;
+    }
+    
+    public static ReplayControlConfig getReplayControlConfig() {
+        return replayControlConfig;
     }
 }

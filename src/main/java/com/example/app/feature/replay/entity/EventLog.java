@@ -29,7 +29,7 @@ public class EventLog {
     private LocalDateTime occurredAt;
 
     /** event_type: OPEN / CLICK / INPUT */
-    private String eventType;
+    private String actionType;
 
     /** page_id: 遷移先または対象画面 */
     private String pageId;
@@ -84,11 +84,11 @@ public class EventLog {
     }
 
     public String getEventType() {
-        return eventType;
+        return actionType;
     }
 
-    public void setEventType(String eventType) {
-        this.eventType = eventType;
+    public void setActionType(String eventType) {
+        this.actionType = eventType;
     }
 
     public String getPageId() {

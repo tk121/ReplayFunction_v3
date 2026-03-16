@@ -82,6 +82,19 @@ public class ReplayStateResponse {
 
     /** 最後に適用した value */
     private String lastValue;
+    
+    /**
+     * このレスポンスを受け取ったクライアントが操作可能かどうかです。
+     *
+     * <p>
+     * 操作画面ではこの値を見てボタンをグレーアウトします。
+     * </p>
+     */
+    private boolean canOperate;
+
+    /** 現在の操作権保持者名 */
+    private String controllerUserName;
+
 
     public String getRoomId() {
         return roomId;
@@ -241,5 +254,21 @@ public class ReplayStateResponse {
 
     public void setLastValue(String lastValue) {
         this.lastValue = lastValue;
+    }
+    
+    public boolean isCanOperate() {
+        return canOperate;
+    }
+
+    public void setCanOperate(boolean canOperate) {
+        this.canOperate = canOperate;
+    }
+
+    public String getControllerUserName() {
+        return controllerUserName;
+    }
+
+    public void setControllerUserName(String controllerUserName) {
+        this.controllerUserName = controllerUserName;
     }
 }

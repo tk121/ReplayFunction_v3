@@ -1,0 +1,130 @@
+WebSocket同期の概要
+
+本システムでは、操作画面および各VDU表示画面が ReplayWsEndpoint に WebSocket 接続する。接続時に WsHub へクライアント登録を行い、その直後に現在の Replay 状態を送信する。以後、操作画面からの制御要求や ReplayEngine による再生進行のたびに、WsHub.broadcast() により同一 roomId に属する全クライアントへ最新状態を配信する。WsHub はクライアントごとの vduNo に応じてレスポンス内容を作り分けるため、操作画面には全体状態を、VDU画面には対象VDUの個別状態を配信できる。
+
+接続時同期
+
+WebSocket 接続時、ReplayWsEndpoint はクエリパラメータから roomId、clientType、vduNo を取得し、WsClient として WsHub に登録する。その後 ReplaySessionService.getState() で現在状態を取得し、WsHub.sendCurrentState() により接続直後の初期状態を1回送信する。これにより、途中参加したクライアントでも現在の再生状態を即時に把握できる。
+
+操作時同期
+
+操作画面からの再生・停止・早送り・先頭移動・末尾移動・条件反映は HTTP API で受け付け、ReplayCoordinator.handleControl() が状態更新を行う。更新後は WsHub.broadcast() を呼び出し、操作画面自身を含む接続中クライアント全体へ最新状態を即時配信する。これにより、複数の表示画面が同じタイミングで状態変化を反映できる。
+
+再生中同期
+
+再生中は ReplayEngine が1秒周期で tick() を実行し、対象時間範囲のイベントを event_log から取得して順次適用する。イベント適用後は currentReplayTime を更新し、WsHub.broadcast() で全クライアントへ状態を再配信する。この仕組みにより、操作画面の状態表示と各VDUの表示内容が同一サーバ状態に基づいて同期される。
+
+図のポイント
+
+仕様書で補足すると分かりやすい点は次です。
+
+WebSocketは「操作コマンド送信用」ではなく「状態配信用」
+
+操作コマンド自体はHTTP
+
+同期の中心はサーバ側の ReplayState
+
+WsHub が roomId と vduNo に応じて送信先・送信内容を切り替える
+
+途中参加した画面も接続直後に現在状態を受け取れる
+
+この説明は、ReplayControlServlet が HTTP で制御要求を受け、ReplayWsEndpoint と WsHub が状態配信を担当する実装に一致しています。
+
+sequenceDiagram
+    autonumber
+
+    participant C as 操作画面<br/>index.html
+    participant V1 as 表示画面<br/>vdu.html(VDU1)
+    participant V2 as 表示画面<br/>vdu.html(VDU2)
+    participant WS as ReplayWsEndpoint
+    participant HUB as WsHub
+    participant RT as AppRuntime
+    participant SS as ReplaySessionService
+    participant CO as ReplayCoordinator
+    participant EN as ReplayEngine
+    participant REPO as EventLogRepository
+    participant DB as event_log
+    participant CI as CInvoker
+
+    Note over C,V2: ① 画面起動・WebSocket接続
+
+    C->>WS: WebSocket接続\n/ws/replay?roomId=global&clientType=CONTROL&vduNo=
+    WS->>HUB: WsClient登録
+    WS->>RT: ReplaySessionService取得
+    RT->>SS: getState(roomId)
+    SS-->>RT: ReplayState
+    RT->>HUB: sendCurrentState(client, state, responseService)
+    HUB-->>C: 現在状態JSON送信
+
+    V1->>WS: WebSocket接続\n/ws/replay?roomId=global&clientType=VDU&vduNo=1
+    WS->>HUB: WsClient登録
+    WS->>RT: ReplaySessionService取得
+    RT->>SS: getState(roomId)
+    SS-->>RT: ReplayState
+    RT->>HUB: sendCurrentState(client, state, responseService)
+    HUB-->>V1: VDU1向け状態JSON送信
+
+    V2->>WS: WebSocket接続\n/ws/replay?roomId=global&clientType=VDU&vduNo=2
+    WS->>HUB: WsClient登録
+    WS->>RT: ReplaySessionService取得
+    RT->>SS: getState(roomId)
+    SS-->>RT: ReplayState
+    RT->>HUB: sendCurrentState(client, state, responseService)
+    HUB-->>V2: VDU2向け状態JSON送信
+
+    Note over C,V2: ② 操作画面からHTTPで再生指示
+
+    C->>CO: handleControl(PLAY / STOP / FAST_FORWARD ...)\n※実際は ReplayControlServlet 経由
+    CO->>SS: roomId正規化・state取得/更新
+    SS-->>CO: ReplayState
+
+    alt APPLY_CONDITION / GO_HEAD / GO_TAIL
+        CO->>REPO: findLatestOpenPageMap(replayTime)
+        REPO->>DB: SQL実行
+        DB-->>REPO: 各VDUの最新OPEN
+        REPO-->>CO: pageMap
+        CO->>CO: VDU状態更新
+    else PLAY / STOP / FAST_FORWARD
+        CO->>CO: ReplayState更新
+    end
+
+    CO->>HUB: broadcast(state, responseService)
+    HUB-->>C: CONTROL向け状態JSON
+    HUB-->>V1: VDU1向け状態JSON
+    HUB-->>V2: VDU2向け状態JSON
+
+    Note over C,V2: ③ 再生中はReplayEngineが1秒ごとに進行
+
+    loop 1秒ごと（再生中のみ）
+        EN->>SS: getAllStates()
+        SS-->>EN: ReplayState一覧
+        EN->>EN: currentReplayTime / next時刻算出
+        EN->>CO: applyReplayWindow(state, current, next)
+        CO->>REPO: findEventsBetween(current, next)
+        REPO->>DB: SQL実行
+        DB-->>REPO: event_log一覧
+        REPO-->>CO: EventLog一覧
+
+        loop イベント件数分
+            CO->>CI: execute(CRequest)
+            CI-->>CO: CResult
+            CO->>CO: ReplayState / ReplayVduState更新
+        end
+
+        EN->>EN: currentReplayTime更新\n末尾到達時は自動停止
+        EN->>HUB: broadcast(state, responseService)
+        HUB-->>C: CONTROL向け状態JSON
+        HUB-->>V1: VDU1向け状態JSON
+        HUB-->>V2: VDU2向け状態JSON
+    end
+
+    Note over C,V2: ④ 受信側画面更新
+
+    C->>C: renderState()\n状態欄更新
+    V1->>V1: renderState()\n状態欄更新 + iframe更新
+    V2->>V2: renderState()\n状態欄更新 + iframe更新
+
+    Note over C,V2: ⑤ WebSocket切断時
+
+    V1->>WS: 接続切断
+    WS->>HUB: unregister(session)

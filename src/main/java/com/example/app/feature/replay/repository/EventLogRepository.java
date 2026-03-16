@@ -46,7 +46,7 @@ public class EventLogRepository {
      */
     public List<EventLog> findEventsBetween(LocalDateTime fromExclusive, LocalDateTime toInclusive) throws Exception {
         String sql =
-                "SELECT event_id, unit_no, graphic_type, vdu_no, occurred_at, event_type, page_id, control_id, symbol_id, value " +
+                "SELECT event_id, unit_no, graphic_type, vdu_no, occurred_at, action_type, page_id, control_id, symbol_id, value " +
                 "  FROM event_log " +
                 " WHERE occurred_at > ? " +
                 "   AND occurred_at <= ? " +
@@ -97,7 +97,7 @@ public class EventLogRepository {
         String sql =
                 "SELECT vdu_no, page_id, occurred_at, event_id " +
                 "  FROM event_log " +
-                " WHERE event_type = 'OPEN' " +
+                " WHERE action_type = 'OPEN' " +
                 "   AND occurred_at <= ? " +
                 " ORDER BY vdu_no ASC, occurred_at DESC, event_id DESC";
 
@@ -149,7 +149,7 @@ public class EventLogRepository {
             eventLog.setOccurredAt(ts.toLocalDateTime());
         }
 
-        eventLog.setEventType(rs.getString("event_type"));
+        eventLog.setActionType(rs.getString("event_type"));
         eventLog.setPageId(rs.getString("page_id"));
         eventLog.setControlId(rs.getString("control_id"));
         eventLog.setSymbolId(rs.getString("symbol_id"));

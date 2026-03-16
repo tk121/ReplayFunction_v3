@@ -43,8 +43,10 @@ public class ReplayStateServlet extends HttpServlet {
             String roomId = req.getParameter("roomId");
             int vduNo = parseInt(req.getParameter("vduNo"), 0);
 
-            // 現在状態を取得
-            ReplayStateResponse response = AppRuntime.getReplayCoordinator().getState(roomId, vduNo);
+            // この clientId をもとに canOperate を返す
+            String clientId = req.getParameter("clientId");
+
+            ReplayStateResponse response = AppRuntime.getReplayCoordinator().getState(roomId, vduNo, clientId);
 
             // JSON で返却
             JsonUtil.writeValue(resp.getWriter(), response);

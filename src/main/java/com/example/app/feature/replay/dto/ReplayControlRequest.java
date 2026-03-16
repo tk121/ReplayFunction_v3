@@ -71,6 +71,8 @@ public class ReplayControlRequest {
      * </p>
      */
     private String operatorName;
+    
+    private String clientId;
 
     public String getRoomId() {
         return roomId;
@@ -110,5 +112,13 @@ public class ReplayControlRequest {
 
     public void setOperatorName(String operatorName) {
         this.operatorName = operatorName;
+    }
+    
+    public String getClientId() {
+        return clientId;
+    }
+
+    public void setClientId(String clientId) {
+        this.clientId = clientId;
     }
 }

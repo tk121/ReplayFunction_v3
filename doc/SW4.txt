@@ -1,0 +1,372 @@
+1. システム概要
+
+本システムは、データベースに保存された操作履歴を時系列で再生し、複数のブラウザ画面（VDU）へ同期表示する Replay機能 を提供する Webアプリケーションである。
+
+操作画面から再生条件を指定すると、サーバがイベントを取得して再生処理を実行し、WebSocketを用いて接続された各ブラウザへリアルタイムに状態を配信する。
+
+また、イベント適用時には必要に応じて Cプロセスと通信し処理を実行する。
+
+2. システム構成
+
+graph TD
+
+BrowserControl[index.html<br>操作画面]
+BrowserVDU[vdu.html<br>表示画面]
+
+Tomcat[Tomcat Web Application]
+
+ReplayControlServlet
+ReplayStateServlet
+ReplayWsEndpoint
+
+ReplayCoordinator
+ReplayEngine
+ReplaySessionService
+ReplayResponseService
+WsHub
+
+EventLogRepository
+DB[(PostgreSQL)]
+
+CInvoker
+CServer[C Process]
+
+BrowserControl -->|HTTP| ReplayControlServlet
+BrowserVDU -->|HTTP| ReplayStateServlet
+BrowserControl -->|WebSocket| ReplayWsEndpoint
+BrowserVDU -->|WebSocket| ReplayWsEndpoint
+
+ReplayControlServlet --> ReplayCoordinator
+ReplayStateServlet --> ReplayCoordinator
+
+ReplayWsEndpoint --> WsHub
+
+ReplayCoordinator --> ReplayEngine
+ReplayCoordinator --> ReplaySessionService
+ReplayCoordinator --> ReplayResponseService
+
+ReplayEngine --> EventLogRepository
+EventLogRepository --> DB
+
+ReplayEngine --> CInvoker
+CInvoker --> CServer
+
+ReplayCoordinator --> WsHub
+WsHub --> BrowserVDU
+WsHub --> BrowserControl
+
+3. 画面構成
+3.1 操作画面
+
+index.html
+
+役割
+Replay操作を行う
+
+操作
+
+| 項目    | 内容            |
+| ----- | ------------- |
+| 開始日時  | Replay開始時刻    |
+| 表示期間  | 4 / 12 / 24時間 |
+| 再生    | Replay開始      |
+| 停止    | Replay停止      |
+| 速度変更  | 再生速度変更        |
+| VDU表示 | VDU画面起動       |
+
+
+3.2 表示画面
+
+vdu.html
+
+VDUごとにReplay画面を表示する。
+
+画面には以下の情報を表示する。
+
+表示項目	説明
+操作者	
+操作者IP	
+Replay状態	
+開始日時	
+現在Replay位置	
+再生速度	
+現在ページ	
+イベント情報	
+
+実際の画面は iframe に表示する。
+
+4. 通信方式
+
+本システムは HTTP + WebSocket のハイブリッド方式で動作する。
+
+用途	通信
+操作コマンド	HTTP
+状態取得	HTTP
+リアルタイム更新	WebSocket
+
+5. API仕様
+5.1 Replay状態取得API
+
+URL
+
+GET /api/replay/state
+
+パラメータ
+
+名前	型	説明
+roomId	string	Replayルーム
+vduNo	int	VDU番号
+
+レスポンス
+
+ReplayStateResponse
+
+主な項目
+
+項目	説明
+roomId	
+operatorName	
+playStatus	
+currentReplayTime	
+displayUrl	
+currentPageId	
+
+このレスポンスは
+Replay状態をDTOとして返すクラスである。
+
+6. WebSocket仕様
+
+接続URL
+
+/ws/replay
+
+接続例
+
+ws://host/ws/replay?roomId=global&clientType=VDU&vduNo=1
+
+パラメータ
+
+パラメータ	説明
+roomId	Replayルーム
+clientType	CONTROL / VDU
+vduNo	VDU番号
+
+接続時
+
+クライアント登録
+
+現在状態送信
+
+この処理は WebSocket Endpoint が担当する。
+
+7. Replay状態管理
+
+Replayの状態は ReplayState クラスに保持される。
+
+主な項目
+
+項目	説明
+roomId	ルームID
+operatorName	操作者
+playStatus	STOPPED / PLAYING
+startDateTime	開始日時
+currentReplayTime	現在位置
+speed	再生速度
+
+ReplayStateは VDUごとの状態も保持する。
+
+Map<Integer, ReplayVduState>
+
+VDUごとの状態管理は ReplayVduState が担当する。
+
+8. VDU状態管理
+
+VDUごとの状態
+
+項目	説明
+vduNo	VDU番号
+currentPageId	表示ページ
+displayUrl	iframe URL
+lastAppliedEventId	最終イベント
+lastApplyResult	SUCCESS/FAIL
+
+VDU状態は ReplayVduState に保持される。
+
+9. Replay処理
+
+Replay処理は ReplayEngine が担当する。
+
+処理概要
+
+DBからイベント取得
+
+時刻順にイベント適用
+
+Cプロセス呼び出し
+
+状態更新
+
+WebSocket配信
+
+10. Replay処理シーケンス
+
+sequenceDiagram
+
+participant Browser
+participant Servlet
+participant Coordinator
+participant Engine
+participant Repository
+participant CProcess
+participant WsHub
+
+Browser->>Servlet: Replay開始
+Servlet->>Coordinator: startReplay()
+
+Coordinator->>Engine: start()
+
+loop Replay処理
+Engine->>Repository: getNextEvent()
+Repository->>DB: select event
+DB-->>Repository: event
+Repository-->>Engine: event
+
+Engine->>CProcess: applyEvent
+CProcess-->>Engine: result
+
+Engine->>Coordinator: state更新
+Coordinator->>WsHub: broadcast
+WsHub-->>Browser: WebSocket更新
+end
+
+11. WebSocket配信
+
+WebSocket配信は WsHub が担当する。
+
+役割
+
+機能	説明
+register	クライアント登録
+unregister	クライアント削除
+sendCurrentState	初期状態送信
+broadcast	状態配信
+
+クライアント情報は Mapで管理する。
+
+Map<String, WsClient>
+
+このクラスは WebSocket配信専用のコンポーネントである。
+
+12. DBアクセス
+
+Replayイベントは event_log テーブルから取得する。
+
+取得条件
+
+条件	説明
+開始日時	
+終了日時	
+VDU番号	
+
+Repository
+
+EventLogRepository
+
+13. Cプロセス連携
+
+イベント適用時に Cプロセスへ処理を依頼する。
+
+Java側インターフェース
+
+CInvoker
+
+このインターフェースにより
+
+Socket通信
+
+ProcessBuilder起動
+
+など複数方式を切り替えることができる。
+
+14. ソケット通信
+
+常駐Cプロセスと通信する場合
+
+SocketCInvoker
+
+処理
+
+TCP接続
+
+JSON送信
+
+JSON応答受信
+
+15. アプリケーション初期化
+
+Tomcat起動時に以下を生成する。
+
+コンポーネント	役割
+ReplayCoordinator	Replay管理
+ReplayEngine	Replay処理
+ReplaySessionService	状態管理
+ReplayResponseService	DTO生成
+WsHub	WebSocket管理
+
+これらは AppRuntime に保持される。
+
+16. 排他制御
+
+Replay状態更新は synchronized により保護される。
+
+synchronized (state)
+
+これにより
+
+ReplayEngine
+
+HTTP API
+
+WebSocket
+
+からの同時アクセスを防止する。
+
+17. スレッドモデル
+処理	スレッド
+HTTP API	Tomcat worker
+WebSocket	container thread
+ReplayEngine	Replay worker
+
+18. パッケージ構成
+com.example.app
+ ├ common
+ │   ├ json
+ │   └ runtime
+ │
+ └ feature
+     └ replay
+         ├ controller
+         ├ controller.ws
+         ├ service
+         ├ repository
+         ├ model
+         ├ dto
+         └ c
+19. 将来拡張
+
+将来追加予定機能
+
+機能	説明
+Trend機能	操作履歴グラフ
+Event機能	イベント一覧
+Replay複数ルーム	roomId分離
+Replay分散	複数サーバ
+20. 用語
+用語	説明
+Replay	操作履歴再生
+VDU	表示画面
+Room	同期再生グループ
+Event	操作履歴
+
+
+

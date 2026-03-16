@@ -39,13 +39,14 @@ public class ReplayWsEndpoint {
             String roomId = getQueryParam(session, "roomId");
             String clientType = getQueryParam(session, "clientType");
             int vduNo = parseInt(getQueryParam(session, "vduNo"), 0);
+            String clientId = getQueryParam(session, "clientId");
 
             // roomId 未指定時は global を使用
             if (roomId == null || roomId.length() == 0) {
                 roomId = "global";
             }
 
-            WsClient client = new WsClient(session, roomId, clientType, vduNo);
+            WsClient client = new WsClient(session, roomId, clientType, vduNo, clientId);
 
             // 接続クライアントとして登録
             AppRuntime.getReplayWsHub().register(client);

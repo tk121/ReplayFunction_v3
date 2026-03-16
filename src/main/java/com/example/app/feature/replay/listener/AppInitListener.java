@@ -14,6 +14,7 @@ import com.example.app.feature.replay.c.SocketCInvoker;
 import com.example.app.feature.replay.controller.ws.WsHub;
 import com.example.app.feature.replay.engine.ReplayEngine;
 import com.example.app.feature.replay.repository.EventLogRepository;
+import com.example.app.feature.replay.service.ReplayControlConfig;
 import com.example.app.feature.replay.service.ReplayCoordinator;
 import com.example.app.feature.replay.service.ReplayResponseService;
 import com.example.app.feature.replay.service.ReplaySessionService;
@@ -49,11 +50,21 @@ public class AppInitListener implements ServletContextListener {
             // JNDI から DataSource を取得
             String jndi = getInitParam(application, "replay.jndi", "java:comp/env/jdbc/mydb");
             DataSource ds = DataSourceProvider.lookup(jndi);
+            
+            // heartbeat 設定を読み込む
+            boolean heartbeatEnabled = Boolean.parseBoolean(
+                    getInitParam(application, "replay.control.heartbeat.enabled", "true"));
+            int heartbeatTimeoutSeconds = Integer.parseInt(
+                    getInitParam(application, "replay.control.heartbeat.timeoutSeconds", "30"));
+
+            ReplayControlConfig controlConfig = new ReplayControlConfig(
+                    heartbeatEnabled,
+                    heartbeatTimeoutSeconds);
 
             // replay で利用する各コンポーネントを生成
             WsHub wsHub = new WsHub();
-            ReplaySessionService sessionService = new ReplaySessionService();
-            ReplayResponseService responseService = new ReplayResponseService();
+            ReplaySessionService sessionService = new ReplaySessionService(controlConfig);
+            ReplayResponseService responseService = new ReplayResponseService(sessionService);
             EventLogRepository eventLogRepository = new EventLogRepository(ds);
 
             // C 呼び出し方式を設定値から決定
@@ -81,7 +92,8 @@ public class AppInitListener implements ServletContextListener {
                     sessionService,
                     responseService,
                     engine,
-                    coordinator
+                    coordinator,
+                    controlConfig
             );
 
             // replay エンジン起動

@@ -14,6 +14,20 @@ import com.example.app.feature.replay.model.ReplayVduState;
  * </p>
  */
 public class ReplayResponseService {
+	
+    /** 状態管理サービス */
+    private final ReplaySessionService sessionService;
+
+    public ReplayResponseService(ReplaySessionService sessionService) {
+        this.sessionService = sessionService;
+    }
+
+    /**
+     * 旧呼び出し互換用です。
+     */
+    public ReplayStateResponse buildResponse(ReplayState state, int vduNo) {
+        return buildResponse(state, vduNo, null);
+    }
 
     /**
      * ReplayState からレスポンスDTOを生成します。
@@ -25,13 +39,14 @@ public class ReplayResponseService {
      *
      * @param state 現在の replay 状態
      * @param vduNo 対象 VDU 番号。0 の場合は全体状態
+     * @param clientId このレスポンスを受け取るクライアントID
      * @return 画面返却用レスポンス
      */
-    public ReplayStateResponse buildResponse(ReplayState state, int vduNo) {
+    public ReplayStateResponse buildResponse(ReplayState state, int vduNo, String clientId) {
         synchronized (state) {
             ReplayStateResponse res = new ReplayStateResponse();
 
-            // replay 全体に共通する状態を設定
+            // replay 全体に共通する状態
             res.setRoomId(state.getRoomId());
             res.setOperatorName(state.getOperatorName());
             res.setOperatorIp(state.getOperatorIp());
@@ -41,6 +56,10 @@ public class ReplayResponseService {
             res.setCurrentReplayTime(state.getCurrentReplayTime());
             res.setSpeed(state.getSpeed());
             res.setLastCommand(state.getLastCommand());
+            
+            // 排他制御表示用
+            res.setControllerUserName(state.getControllerUserName());
+            res.setCanOperate(sessionService.canOperate(state, clientId));
 
             if (vduNo > 0) {
                 // 指定VDUの個別状態をレスポンスへ反映する

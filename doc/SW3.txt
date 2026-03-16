@@ -1,0 +1,331 @@
+Webアプリケーション
+リプレイ機能 ソフトウェア仕様書
+1. 概要
+
+本システムは、データベースに記録された操作履歴をもとに、過去の操作を再生する リプレイ機能 を提供するWebアプリケーションである。
+
+操作画面から再生条件を指定し、再生コマンド（再生・停止・速度変更など）を実行すると、複数の表示画面（VDU）に対して同じ再生内容を同期表示する。
+
+再生イベントはサーバ側で処理され、各クライアントへは WebSocketによるリアルタイム配信で状態が通知される。
+
+また、イベント適用時には必要に応じて Cプロセスと連携して処理を実行する。
+
+2. システム構成
++----------------------+
+|   Browser (Control)  |
+|   index.html         |
++----------+-----------+
+           |
+           | HTTP API
+           v
++----------------------+
+|      Tomcat          |
+|  ReplayControlServlet|
+|  ReplayStateServlet  |
++----------+-----------+
+           |
+           | WebSocket
+           v
++----------------------+
+|    ReplayWsEndpoint  |
+|        WsHub         |
++----------+-----------+
+           |
+           v
++----------------------+
+|   ReplayCoordinator  |
++----------+-----------+
+           |
+           v
++----------------------+
+|      ReplayEngine    |
++----------+-----------+
+           |
+           v
++----------------------+
+|  EventLogRepository  |
+|        (DB)          |
++----------+-----------+
+           |
+           v
++----------------------+
+|      CInvoker        |
+|   (Socket / Process) |
++----------------------+
+3. 機能概要
+機能	説明
+リプレイ開始	指定した日時から操作履歴の再生を開始
+リプレイ停止	再生処理を停止
+再生速度変更	再生速度変更
+状態取得	現在のリプレイ状態取得
+WebSocket同期	全クライアントへ再生状態配信
+VDU表示	各VDUごとに画面表示
+4. 画面構成
+4.1 操作画面
+
+index.html
+
+機能
+
+項目	説明
+開始日時	リプレイ開始日時
+表示期間	4時間 / 12時間 / 24時間
+再生ボタン	リプレイ開始
+停止ボタン	停止
+速度変更	再生速度変更
+4.2 VDU表示画面
+
+vdu.html
+
+各VDUは以下の情報を表示する。
+
+項目	説明
+現在操作者	
+操作者IP	
+再生状態	
+開始日時	
+現在再生時刻	
+再生速度	
+表示URL	
+現在PageId	
+最後のイベント	
+
+iframeにより実際の画面を表示する。
+
+<iframe id="replayFrame"></iframe>
+
+5. 通信方式
+5.1 HTTP API
+状態取得API
+GET /api/replay/state
+
+パラメータ
+
+名前	説明
+roomId	リプレイルームID
+vduNo	VDU番号
+
+レスポンス
+
+ReplayStateResponse
+
+5.2 WebSocket
+
+接続URL
+
+/ws/replay
+
+接続パラメータ
+
+ws://host/ws/replay?roomId=global&clientType=VDU&vduNo=1
+パラメータ	説明
+roomId	リプレイルーム
+clientType	CONTROL / VDU
+vduNo	VDU番号
+
+接続時に現在状態が送信される。
+
+6. データモデル
+ReplayState
+
+リプレイ全体の状態を保持するクラス
+
+主な項目
+
+項目	説明
+roomId	ルームID
+operatorName	操作者
+operatorIp	操作者IP
+playStatus	再生状態
+startDateTime	開始日時
+currentReplayTime	現在再生位置
+speed	再生速度
+
+VDU状態は Map で保持する
+
+Map<Integer, ReplayVduState>
+
+ReplayVduState
+
+VDUごとの状態
+
+項目	説明
+vduNo	VDU番号
+currentPageId	現在表示ページ
+displayUrl	表示URL
+lastAppliedEventId	最後のイベントID
+lastApplyResult	適用結果
+
+ReplayStateResponse
+
+クライアントへ返すDTO
+
+全体状態
+
+VDU状態
+
+を含む。
+
+7. WebSocket配信
+
+WebSocketクライアント管理は WsHub が担当する。
+
+役割
+
+機能	説明
+クライアント登録	register()
+クライアント削除	unregister()
+初期状態送信	sendCurrentState()
+状態配信	broadcast()
+
+roomIdごとに配信対象を制御する。
+
+8. リプレイ処理
+
+リプレイ処理は以下の流れで実行される。
+
+ReplayEngine
+   ↓
+EventLogRepository
+   ↓
+ReplayCoordinator
+   ↓
+WsHub.broadcast()
+
+処理概要
+
+DBからイベント取得
+
+時刻順にイベント適用
+
+Cプロセスへ処理依頼
+
+ReplayState更新
+
+WebSocket配信
+
+9. DBアクセス
+
+イベント履歴テーブル
+
+event_log
+
+取得条件
+
+開始時刻
+終了時刻
+VDU番号
+
+Repository
+
+EventLogRepository
+10. Cプロセス連携
+
+JavaからCプロセスへイベントを送信する。
+
+インターフェース
+
+CInvoker
+
+実装
+
+実装	説明
+ProcessBuilderCInvoker	Cプロセスを起動
+SocketCInvoker	常駐Cプロセスと通信
+
+Socket通信ではJSONを送受信する。
+
+11. アプリケーション初期化
+
+Tomcat起動時に以下を生成する
+
+コンポーネント	役割
+ReplayCoordinator	リプレイ管理
+ReplaySessionService	状態管理
+ReplayEngine	再生処理
+WsHub	WebSocket配信
+
+これらは AppRuntime に保持される。
+
+12. スレッド構成
+処理	スレッド
+HTTP API	Tomcat worker thread
+WebSocket	container thread
+ReplayEngine	replay worker thread
+13. 排他制御
+
+ReplayStateは同期化されて更新される。
+
+synchronized (state)
+
+複数スレッドからの状態更新を防止する。
+
+14. エラー処理
+
+APIエラー時は以下形式で返す
+
+{
+ "message": "error message"
+}
+
+ErrorResponse
+
+15. 将来拡張
+
+将来以下機能を追加予定
+
+機能	概要
+Trend機能	操作履歴グラフ表示
+Event機能	イベント一覧表示
+Replay複数ルーム	roomIdによる完全分離
+16. パッケージ構成
+com.example.app
+ ├ common
+ │   ├ json
+ │   └ runtime
+ │
+ └ feature
+     └ replay
+         ├ controller
+         ├ controller.ws
+         ├ service
+         ├ repository
+         ├ model
+         ├ dto
+         └ c
+17. 処理シーケンス
+
+リプレイ開始
+
+Browser
+   │
+   │ HTTP
+   ▼
+ReplayControlServlet
+   │
+   ▼
+ReplayCoordinator
+   │
+   ▼
+ReplayEngine
+   │
+   ▼
+DB event_log
+   │
+   ▼
+CInvoker
+   │
+   ▼
+ReplayState更新
+   │
+   ▼
+WsHub.broadcast
+   │
+   ▼
+VDU画面更新
+18. 用語
+用語	説明
+Replay	操作履歴再生
+VDU	表示画面
+Room	同期再生グループ
+Event	操作履歴

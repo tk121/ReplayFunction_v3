@@ -14,6 +14,11 @@
       border: 1px solid #ccc;
       background: #f7f7f7;
     }
+	.notice {
+	  margin-top: 8px;
+	  color: #444;
+	  font-weight: bold;
+	}
   </style>
 </head>
 <body>
@@ -51,6 +56,9 @@
     <button id="btnHead">先頭に戻る</button>
     <button id="btnTail">最後尾に進む</button>
   </div>
+  
+  <div class="notice">現在の操作権保持者: <span id="currentControllerName">-</span></div>
+  <div class="notice">操作可否: <span id="canOperateMessage">-</span></div>
 
   <hr>
 

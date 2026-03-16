@@ -67,7 +67,7 @@ public class WsHub {
      * @throws Exception 送信失敗時
      */
     public void sendCurrentState(WsClient client, ReplayState state, ReplayResponseService responseService) throws Exception {
-        ReplayStateResponse response = responseService.buildResponse(state, client.getVduNo());
+        ReplayStateResponse response = responseService.buildResponse(state, client.getVduNo(), client.getClientId());
         String json = JsonUtil.writeValueAsString(response);
         client.getSession().getBasicRemote().sendText(json);
     }
@@ -100,7 +100,8 @@ public class WsHub {
             }
 
             try {
-                ReplayStateResponse response = responseService.buildResponse(state, client.getVduNo());
+                ReplayStateResponse response = responseService.buildResponse(
+                		state, client.getVduNo(),client.getClientId());
                 String json = JsonUtil.writeValueAsString(response);
                 client.getSession().getBasicRemote().sendText(json);
 

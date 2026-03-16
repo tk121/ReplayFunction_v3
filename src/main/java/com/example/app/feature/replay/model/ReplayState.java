@@ -14,253 +14,318 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class ReplayState {
 
-    /** 停止中状態 */
-    public static final String STATUS_STOPPED = "STOPPED";
+	/** 停止中状態 */
+	public static final String STATUS_STOPPED = "STOPPED";
 
-    /** 再生中状態 */
-    public static final String STATUS_PLAYING = "PLAYING";
+	/** 再生中状態 */
+	public static final String STATUS_PLAYING = "PLAYING";
 
-    /** ルームID */
-    private String roomId;
+	/** ルームID */
+	private String roomId;
 
-    /** 操作者名 */
-    private String operatorName;
+	/** 現在の操作者名 */
+	private String operatorName;
 
-    /** 操作者IP */
-    private String operatorIp;
+	/** 現在の操作者IP */
+	private String operatorIp;
 
-    /** 再生状態 */
-    private String playStatus;
+	/** 再生状態 */
+	private String playStatus;
 
-    /** 再生開始日時 */
-    private String startDateTime;
+	/** 再生開始日時 */
+	private String startDateTime;
 
-    /** 表示期間（時間） */
-    private int periodHours;
+	/** 表示期間（時間） */
+	private int periodHours;
 
-    /** 現在の再生位置 */
-    private String currentReplayTime;
+	/** 現在の再生位置 */
+	private String currentReplayTime;
 
-    /** 再生速度 */
-    private int speed;
+	/** 再生速度 */
+	private int speed;
 
-    /** 最後に実行したコマンド */
-    private String lastCommand;
+	/** 最後に実行したコマンド */
+	private String lastCommand;
 
-    /** 最後に適用した event_id */
-    private Long lastAppliedEventId;
+	/** 最後に適用した event_id */
+	private Long lastAppliedEventId;
 
-    /** 最後に適用した event_type */
-    private String lastAppliedEventType;
+	/** 最後に適用した event_type */
+	private String lastAppliedEventType;
 
-    /** 最後に適用した vdu_no */
-    private Integer lastAppliedVduNo;
+	/** 最後に適用した vdu_no */
+	private Integer lastAppliedVduNo;
 
-    /** 最後の適用結果 */
-    private String lastApplyResult;
+	/** 最後の適用結果 */
+	private String lastApplyResult;
 
-    /** 最後に適用したイベント発生時刻 */
-    private String lastAppliedOccurredAt;
+	/** 最後に適用したイベント発生時刻 */
+	private String lastAppliedOccurredAt;
 
-    /** 最後に適用した control_id */
-    private String lastControlId;
+	/** 最後に適用した control_id */
+	private String lastControlId;
 
-    /** 最後に適用した symbol_id */
-    private String lastSymbolId;
+	/** 最後に適用した symbol_id */
+	private String lastSymbolId;
 
-    /** 最後に適用した value */
-    private String lastValue;
+	/** 最後に適用した value */
+	private String lastValue;
 
-    /**
-     * VDUごとの状態保持マップです。
-     *
-     * <p>
-     * key は vduNo、value はその VDU の現在状態です。
-     * </p>
-     */
-    private final Map<Integer, ReplayVduState> vduStateMap = new ConcurrentHashMap<Integer, ReplayVduState>();
+	/**
+	 * 現在の操作権保持クライアントIDです。
+	 *
+	 * <p>
+	 * 操作権判定の本体はこの値で行います。
+	 * </p>
+	 */
+	private String controllerClientId;
 
-    public ReplayState() {
-        this.playStatus = STATUS_STOPPED;
-        this.periodHours = 4;
-        this.speed = 1;
-        this.lastCommand = "INIT";
-    }
+	/**
+	 * 現在の操作権保持者名です。
+	 *
+	 * <p>
+	 * 画面表示用に保持します。
+	 * </p>
+	 */
+	private String controllerUserName;
 
-    /**
-     * 指定した VDU の状態を取得します。
-     *
-     * <p>
-     * 未作成であれば新しく生成して保持してから返します。
-     * </p>
-     *
-     * @param vduNo VDU番号
-     * @return VDUごとの状態
-     */
-    public ReplayVduState getOrCreateVduState(int vduNo) {
-        ReplayVduState current = vduStateMap.get(Integer.valueOf(vduNo));
-        if (current != null) {
-            return current;
-        }
+	/** 最終 heartbeat 受信時刻（epoch millis） */
+	private long lastHeartbeatTime;
 
-        ReplayVduState created = new ReplayVduState();
-        created.setVduNo(vduNo);
+	/** ロック取得時刻（epoch millis） */
+	private long lockAcquiredTime;
 
-        ReplayVduState old = vduStateMap.putIfAbsent(Integer.valueOf(vduNo), created);
-        return old != null ? old : created;
-    }
+	/**
+	 * VDUごとの状態保持マップです。
+	 *
+	 * <p>
+	 * key は vduNo、value はその VDU の現在状態です。
+	 * </p>
+	 */
+	private final Map<Integer, ReplayVduState> vduStateMap = new ConcurrentHashMap<Integer, ReplayVduState>();
 
-    public Map<Integer, ReplayVduState> getVduStateMap() {
-        return vduStateMap;
-    }
+	public ReplayState() {
+		this.playStatus = STATUS_STOPPED;
+		this.periodHours = 4;
+		this.speed = 1;
+		this.lastCommand = "INIT";
+	}
 
-    /**
-     * 全VDUについて、イベント適用結果だけをクリアします。
-     *
-     * <p>
-     * pageId や displayUrl は維持し、
-     * 最後に適用したイベント情報だけ初期化します。
-     * </p>
-     */
-    public void clearAllVduEventStatusOnly() {
-        for (ReplayVduState vduState : vduStateMap.values()) {
-            vduState.clearEventStatusOnly();
-        }
-    }
+	/**
+	 * 指定した VDU の状態を取得します。
+	 *
+	 * <p>
+	 * 未作成であれば新しく生成して保持してから返します。
+	 * </p>
+	 *
+	 * @param vduNo VDU番号
+	 * @return VDUごとの状態
+	 */
+	public ReplayVduState getOrCreateVduState(int vduNo) {
+		ReplayVduState current = vduStateMap.get(Integer.valueOf(vduNo));
+		if (current != null) {
+			return current;
+		}
 
-    public String getRoomId() {
-        return roomId;
-    }
+		ReplayVduState created = new ReplayVduState();
+		created.setVduNo(vduNo);
 
-    public void setRoomId(String roomId) {
-        this.roomId = roomId;
-    }
+		ReplayVduState old = vduStateMap.putIfAbsent(Integer.valueOf(vduNo), created);
+		return old != null ? old : created;
+	}
 
-    public String getOperatorName() {
-        return operatorName;
-    }
+	public Map<Integer, ReplayVduState> getVduStateMap() {
+		return vduStateMap;
+	}
 
-    public void setOperatorName(String operatorName) {
-        this.operatorName = operatorName;
-    }
+	/**
+	 * 全VDUについて、イベント適用結果だけをクリアします。
+	 *
+	 * <p>
+	 * pageId や displayUrl は維持し、
+	 * 最後に適用したイベント情報だけ初期化します。
+	 * </p>
+	 */
+	public void clearAllVduEventStatusOnly() {
+		for (ReplayVduState vduState : vduStateMap.values()) {
+			vduState.clearEventStatusOnly();
+		}
+	}
 
-    public String getOperatorIp() {
-        return operatorIp;
-    }
+	public String getRoomId() {
+		return roomId;
+	}
 
-    public void setOperatorIp(String operatorIp) {
-        this.operatorIp = operatorIp;
-    }
+	public void setRoomId(String roomId) {
+		this.roomId = roomId;
+	}
 
-    public String getPlayStatus() {
-        return playStatus;
-    }
+	public String getOperatorName() {
+		return operatorName;
+	}
 
-    public void setPlayStatus(String playStatus) {
-        this.playStatus = playStatus;
-    }
+	public void setOperatorName(String operatorName) {
+		this.operatorName = operatorName;
+	}
 
-    public String getStartDateTime() {
-        return startDateTime;
-    }
+	public String getOperatorIp() {
+		return operatorIp;
+	}
 
-    public void setStartDateTime(String startDateTime) {
-        this.startDateTime = startDateTime;
-    }
+	public void setOperatorIp(String operatorIp) {
+		this.operatorIp = operatorIp;
+	}
 
-    public int getPeriodHours() {
-        return periodHours;
-    }
+	public String getPlayStatus() {
+		return playStatus;
+	}
 
-    public void setPeriodHours(int periodHours) {
-        this.periodHours = periodHours;
-    }
+	public void setPlayStatus(String playStatus) {
+		this.playStatus = playStatus;
+	}
 
-    public String getCurrentReplayTime() {
-        return currentReplayTime;
-    }
+	public String getStartDateTime() {
+		return startDateTime;
+	}
 
-    public void setCurrentReplayTime(String currentReplayTime) {
-        this.currentReplayTime = currentReplayTime;
-    }
+	public void setStartDateTime(String startDateTime) {
+		this.startDateTime = startDateTime;
+	}
 
-    public int getSpeed() {
-        return speed;
-    }
+	public int getPeriodHours() {
+		return periodHours;
+	}
 
-    public void setSpeed(int speed) {
-        this.speed = speed;
-    }
+	public void setPeriodHours(int periodHours) {
+		this.periodHours = periodHours;
+	}
 
-    public String getLastCommand() {
-        return lastCommand;
-    }
+	public String getCurrentReplayTime() {
+		return currentReplayTime;
+	}
 
-    public void setLastCommand(String lastCommand) {
-        this.lastCommand = lastCommand;
-    }
+	public void setCurrentReplayTime(String currentReplayTime) {
+		this.currentReplayTime = currentReplayTime;
+	}
 
-    public Long getLastAppliedEventId() {
-        return lastAppliedEventId;
-    }
+	public int getSpeed() {
+		return speed;
+	}
 
-    public void setLastAppliedEventId(Long lastAppliedEventId) {
-        this.lastAppliedEventId = lastAppliedEventId;
-    }
+	public void setSpeed(int speed) {
+		this.speed = speed;
+	}
 
-    public String getLastAppliedEventType() {
-        return lastAppliedEventType;
-    }
+	public String getLastCommand() {
+		return lastCommand;
+	}
 
-    public void setLastAppliedEventType(String lastAppliedEventType) {
-        this.lastAppliedEventType = lastAppliedEventType;
-    }
+	public void setLastCommand(String lastCommand) {
+		this.lastCommand = lastCommand;
+	}
 
-    public Integer getLastAppliedVduNo() {
-        return lastAppliedVduNo;
-    }
+	public Long getLastAppliedEventId() {
+		return lastAppliedEventId;
+	}
 
-    public void setLastAppliedVduNo(Integer lastAppliedVduNo) {
-        this.lastAppliedVduNo = lastAppliedVduNo;
-    }
+	public void setLastAppliedEventId(Long lastAppliedEventId) {
+		this.lastAppliedEventId = lastAppliedEventId;
+	}
 
-    public String getLastApplyResult() {
-        return lastApplyResult;
-    }
+	public String getLastAppliedEventType() {
+		return lastAppliedEventType;
+	}
 
-    public void setLastApplyResult(String lastApplyResult) {
-        this.lastApplyResult = lastApplyResult;
-    }
+	public void setLastAppliedEventType(String lastAppliedEventType) {
+		this.lastAppliedEventType = lastAppliedEventType;
+	}
 
-    public String getLastAppliedOccurredAt() {
-        return lastAppliedOccurredAt;
-    }
+	public Integer getLastAppliedVduNo() {
+		return lastAppliedVduNo;
+	}
 
-    public void setLastAppliedOccurredAt(String lastAppliedOccurredAt) {
-        this.lastAppliedOccurredAt = lastAppliedOccurredAt;
-    }
+	public void setLastAppliedVduNo(Integer lastAppliedVduNo) {
+		this.lastAppliedVduNo = lastAppliedVduNo;
+	}
 
-    public String getLastControlId() {
-        return lastControlId;
-    }
+	public String getLastApplyResult() {
+		return lastApplyResult;
+	}
 
-    public void setLastControlId(String lastControlId) {
-        this.lastControlId = lastControlId;
-    }
+	public void setLastApplyResult(String lastApplyResult) {
+		this.lastApplyResult = lastApplyResult;
+	}
 
-    public String getLastSymbolId() {
-        return lastSymbolId;
-    }
+	public String getLastAppliedOccurredAt() {
+		return lastAppliedOccurredAt;
+	}
 
-    public void setLastSymbolId(String lastSymbolId) {
-        this.lastSymbolId = lastSymbolId;
-    }
+	public void setLastAppliedOccurredAt(String lastAppliedOccurredAt) {
+		this.lastAppliedOccurredAt = lastAppliedOccurredAt;
+	}
 
-    public String getLastValue() {
-        return lastValue;
-    }
+	public String getLastControlId() {
+		return lastControlId;
+	}
 
-    public void setLastValue(String lastValue) {
-        this.lastValue = lastValue;
-    }
+	public void setLastControlId(String lastControlId) {
+		this.lastControlId = lastControlId;
+	}
+
+	public String getLastSymbolId() {
+		return lastSymbolId;
+	}
+
+	public void setLastSymbolId(String lastSymbolId) {
+		this.lastSymbolId = lastSymbolId;
+	}
+
+	public String getLastValue() {
+		return lastValue;
+	}
+
+	public void setLastValue(String lastValue) {
+		this.lastValue = lastValue;
+	}
+
+	public String getControllerClientId() {
+		return controllerClientId;
+	}
+
+	public void setControllerClientId(String controllerClientId) {
+		this.controllerClientId = controllerClientId;
+	}
+
+	public String getControllerUserName() {
+		return controllerUserName;
+	}
+
+	public void setControllerUserName(String controllerUserName) {
+		this.controllerUserName = controllerUserName;
+	}
+
+	public long getLastHeartbeatTime() {
+		return lastHeartbeatTime;
+	}
+
+	public void setLastHeartbeatTime(long lastHeartbeatTime) {
+		this.lastHeartbeatTime = lastHeartbeatTime;
+	}
+
+	public long getLockAcquiredTime() {
+		return lockAcquiredTime;
+	}
+
+	public void setLockAcquiredTime(long lockAcquiredTime) {
+		this.lockAcquiredTime = lockAcquiredTime;
+	}
+
+	public static String getStatusStopped() {
+		return STATUS_STOPPED;
+	}
+
+	public static String getStatusPlaying() {
+		return STATUS_PLAYING;
+	}
+
 }

@@ -16,6 +16,29 @@
   var btnFastForward = document.getElementById("btnFastForward");
   var btnHead = document.getElementById("btnHead");
   var btnTail = document.getElementById("btnTail");
+  
+  var HEARTBEAT_INTERVAL_MILLIS = 5000;
+  var clientId = getOrCreateClientId();
+
+  /**
+   * ブラウザ単位で保持する clientId を取得します。
+   *
+   * <p>
+   * localStorage に保持することで、ページ再読み込み時も同じ clientId を使います。
+   * </p>
+   */
+  function getOrCreateClientId() {
+    var key = "replay.clientId";
+    var existing = localStorage.getItem(key);
+    if (existing && existing.length > 0) {
+      return existing;
+    }
+
+    var value = "client-" + new Date().getTime() + "-" + Math.floor(Math.random() * 1000000);
+    localStorage.setItem(key, value);
+    return value;
+  }
+
 
   function formatDate(date) {
     var y = date.getFullYear();
@@ -68,10 +91,36 @@
     }
     return value;
   }
+  
+  /**
+   * 操作者名を localStorage に保存します。
+   *
+   * <p>
+   * 今後ログイン画面導入後は、この部分をログインユーザ表示へ差し替えやすくするためです。
+   * </p>
+   */
+  function saveOperatorName() {
+    var value = operatorName.value ? operatorName.value.trim() : "";
+    if (value) {
+      localStorage.setItem("replay.operatorName", value);
+    }
+  }
 
+  function loadOperatorName() {
+    var saved = localStorage.getItem("replay.operatorName");
+    if (saved && !operatorName.value) {
+      operatorName.value = saved;
+    }
+  }
+
+  /**
+   * control API を呼びます。
+   */
   function sendControl(command) {
+	saveOperatorName();
     var payload = {
       roomId: "global",
+	  clientId: clientId,
       command: command,
       startDateTime: getStartDateTime(),
       periodHours: Number(periodHours.value),
@@ -98,6 +147,43 @@
       return data;
     });
   }
+  
+  /**
+   * heartbeat を送信します。
+   *
+   * <p>
+   * 操作権を持っていない場合に送っても、サーバ側で無視されます。
+   * </p>
+   */
+  function sendHeartbeat() {
+    fetch("api/replay/heartbeat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        roomId: "global",
+        clientId: clientId
+      })
+    }).then(function (res) {
+      if (!res.ok) {
+        return;
+      }
+      return res.json();
+    }).then(function (data) {
+      if (data && window.ReplayWs) {
+        window.ReplayWs.renderState(data);
+      }
+    }).catch(function (e) {
+      console.error("heartbeat failed:", e);
+    });
+  }
+
+  function startHeartbeatLoop() {
+    setInterval(function () {
+      sendHeartbeat();
+    }, HEARTBEAT_INTERVAL_MILLIS);
+  }
 
   function initDefault() {
     var now = new Date();
@@ -106,6 +192,7 @@
     periodHours.value = "4";
     rebuildStartHourOptions();
     startHour.value = "0";
+	loadOperatorName();
   }
 
   function bindVduButtons() {
@@ -119,6 +206,9 @@
   }
 
   periodHours.addEventListener("change", rebuildStartHourOptions);
+  
+  operatorName.addEventListener("change", saveOperatorName);
+  operatorName.addEventListener("keyup", saveOperatorName);
 
   btnApply.addEventListener("click", function () {
     sendControl("APPLY_CONDITION").catch(function (e) {
@@ -160,7 +250,7 @@
   bindVduButtons();
 
   if (window.ReplayWs) {
-    window.ReplayWs.connect("global", "CONTROL", "");
-    window.ReplayWs.fetchCurrentState(0);
+    window.ReplayWs.connect("global", "CONTROL", "", clientId);
+    window.ReplayWs.fetchCurrentState(0, clientId);
   }
 })();

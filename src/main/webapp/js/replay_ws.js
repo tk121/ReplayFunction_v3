@@ -11,14 +11,52 @@ window.ReplayWs = (function () {
       el.textContent = (value === null || value === undefined || value === "") ? "-" : value;
     }
   }
+  
+  function setDisabled(id, disabled) {
+    var el = getById(id);
+    if (el) {
+      el.disabled = !!disabled;
+    }
+  }
 
-  function connect(roomId, clientType, vduNo) {
+  /**
+   * 操作可否に応じて、操作ボタンをグレーアウトします。
+   */
+  function applyOperateState(state) {
+    var disabled = !state || !state.canOperate;
+
+    setDisabled("btnApply", disabled);
+    setDisabled("btnPlay", disabled);
+    setDisabled("btnStop", disabled);
+    setDisabled("btnFastForward", disabled);
+    setDisabled("btnHead", disabled);
+    setDisabled("btnTail", disabled);
+
+    // 操作権保持者名を表示
+    setText("currentControllerName", state ? state.controllerUserName : null);
+
+    var msgEl = getById("canOperateMessage");
+    if (msgEl) {
+      if (!state) {
+        msgEl.textContent = "-";
+      } else if (state.canOperate) {
+        msgEl.textContent = "あなたは操作可能です。";
+      } else if (state.controllerUserName) {
+        msgEl.textContent = "現在は " + state.controllerUserName + " が操作中です。";
+      } else {
+        msgEl.textContent = "現在は操作できません。";
+      }
+    }
+  }
+
+  function connect(roomId, clientType, vduNo, clientId) {
     var protocol = location.protocol === "https:" ? "wss:" : "ws:";
     var basePath = location.pathname.substring(0, location.pathname.lastIndexOf("/"));
     var url = protocol + "//" + location.host + basePath + "/ws/replay"
       + "?roomId=" + encodeURIComponent(roomId || "global")
       + "&clientType=" + encodeURIComponent(clientType || "")
-      + "&vduNo=" + encodeURIComponent(vduNo || "");
+      + "&vduNo=" + encodeURIComponent(vduNo || "")
+	        + "&clientId=" + encodeURIComponent(clientId || "");
 
     ws = new WebSocket(url);
 
@@ -36,8 +74,13 @@ window.ReplayWs = (function () {
     };
   }
 
-  function fetchCurrentState(vduNo) {
-    fetch("api/replay/state?roomId=global&vduNo=" + encodeURIComponent(vduNo || 0), {
+  /**
+   * 現在状態を HTTP で再取得します。
+   */
+  function fetchCurrentState(vduNo, clientId) {
+    fetch("api/replay/state?roomId=global&vduNo="
+      + encodeURIComponent(vduNo || 0)
+      + "&clientId=" + encodeURIComponent(clientId || ""), {
       method: "GET"
     }).then(function (res) {
       if (!res.ok) {
@@ -51,6 +94,9 @@ window.ReplayWs = (function () {
     });
   }
 
+  /**
+   * 受信した状態を画面へ反映します。
+   */
   function renderState(state) {
     setText("currentOperator", state.operatorName);
     setText("currentOperatorIp", state.operatorIp);
@@ -70,6 +116,10 @@ window.ReplayWs = (function () {
     setText("lastSymbolIdLabel", state.lastSymbolId);
     setText("lastValueLabel", state.lastValue);
 
+	// 操作可否のUI反映
+	applyOperateState(state);
+
+	// VDU画面では iframe の表示URLも更新
     var frame = getById("replayFrame");
     if (frame && state.displayUrl) {
       if (frame.getAttribute("src") !== state.displayUrl) {
