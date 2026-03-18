@@ -110,6 +110,9 @@ public class ReplayState {
 		this.speed = 1;
 		this.lastCommand = "INIT";
 	}
+	
+    /** AVDU の現在表示状態 */
+    private ReplayAvduState avduState = new ReplayAvduState();
 
 	/**
 	 * 指定した VDU の状態を取得します。
@@ -151,6 +154,14 @@ public class ReplayState {
 			vduState.clearEventStatusOnly();
 		}
 	}
+	
+    public ReplayAvduState getAvduState() {
+        return avduState;
+    }
+
+    public void setAvduState(ReplayAvduState avduState) {
+        this.avduState = avduState;
+    }
 
 	public String getRoomId() {
 		return roomId;

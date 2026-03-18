@@ -1,5 +1,8 @@
 package com.example.app.feature.replay.dto;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * replay の現在状態を返すレスポンスDTOです。
  *
@@ -9,6 +12,9 @@ package com.example.app.feature.replay.dto;
  * </p>
  */
 public class ReplayStateResponse {
+	
+    /** CONTROL / VDU / AVDU */
+    private String clientType;
 
     /** ルームID */
     private String roomId;
@@ -98,6 +104,17 @@ public class ReplayStateResponse {
 
     public String getRoomId() {
         return roomId;
+    }
+    
+    /** AVDU 向けアラート一覧 */
+    private List<ReplayAvduAlert> avduAlerts = new ArrayList<ReplayAvduAlert>();
+
+    public String getClientType() {
+        return clientType;
+    }
+
+    public void setClientType(String clientType) {
+        this.clientType = clientType;
     }
 
     public void setRoomId(String roomId) {
@@ -270,5 +287,13 @@ public class ReplayStateResponse {
 
     public void setControllerUserName(String controllerUserName) {
         this.controllerUserName = controllerUserName;
+    }
+    
+    public List<ReplayAvduAlert> getAvduAlerts() {
+        return avduAlerts;
+    }
+
+    public void setAvduAlerts(List<ReplayAvduAlert> avduAlerts) {
+        this.avduAlerts = avduAlerts;
     }
 }

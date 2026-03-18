@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>AVDU表示</title>
+  <style>
+    body { font-family: sans-serif; margin: 12px; }
+    .info-box {
+      margin-bottom: 12px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      background: #f7f7f7;
+    }
+    .line { margin-bottom: 6px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+    }
+    th, td {
+      border: 1px solid #999;
+      padding: 6px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #efefef;
+    }
+  </style>
+</head>
+<body>
+  <h1>AVDU</h1>
+
+  <div class="info-box">
+    <div class="line">現在操作者: <span id="currentOperator">-</span></div>
+    <div class="line">操作者IP: <span id="currentOperatorIp">-</span></div>
+    <div class="line">状態: <span id="playStatus">-</span></div>
+    <div class="line">開始日時: <span id="startDateTimeLabel">-</span></div>
+    <div class="line">表示期間: <span id="periodHoursLabel">-</span></div>
+    <div class="line">現在位置: <span id="currentReplayTimeLabel">-</span></div>
+    <div class="line">速度: <span id="speedLabel">-</span></div>
+    <div class="line">最終コマンド: <span id="lastCommandLabel">-</span></div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>alert_id</th>
+        <th>unit_no</th>
+        <th>alert_tag</th>
+        <th>alert_name_1</th>
+        <th>alert_name_2</th>
+        <th>alert_severity</th>
+        <th>column_no</th>
+        <th>firsthit</th>
+        <th>flick</th>
+        <th>yokoku_color</th>
+      </tr>
+    </thead>
+    <tbody id="avduAlertBody">
+      <tr>
+        <td colspan="10">読込中...</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <script src="js/replay_ws.js"></script>
+  <script>
+    (function () {
+      window.REPLAY_SCREEN_TYPE = "AVDU";
+      var clientId = "avdu-" + new Date().getTime();
+
+      if (window.ReplayWs) {
+        window.ReplayWs.connect("global", "AVDU", "", clientId);
+        window.ReplayWs.fetchCurrentState("AVDU", 0, clientId);
+      }
+    })();
+  </script>
+</body>
+</html>

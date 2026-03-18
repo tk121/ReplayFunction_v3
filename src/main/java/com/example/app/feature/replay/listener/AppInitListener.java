@@ -66,6 +66,7 @@ public class AppInitListener implements ServletContextListener {
             ReplaySessionService sessionService = new ReplaySessionService(controlConfig);
             ReplayResponseService responseService = new ReplayResponseService(sessionService);
             EventLogRepository eventLogRepository = new EventLogRepository(ds);
+            AlertHistoryRepository alertHistoryRepository = new AlertHistoryRepository(ds);
 
             // C 呼び出し方式を設定値から決定
             CInvoker cInvoker = createCInvoker(application);
@@ -75,6 +76,7 @@ public class AppInitListener implements ServletContextListener {
                     responseService,
                     wsHub,
                     eventLogRepository,
+                    alertHistoryRepository,
                     cInvoker
             );
 
