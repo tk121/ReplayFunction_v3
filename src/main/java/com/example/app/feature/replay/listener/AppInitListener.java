@@ -6,6 +6,9 @@ import javax.servlet.ServletContextListener;
 import javax.servlet.annotation.WebListener;
 import javax.sql.DataSource;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.example.app.common.datasource.DataSourceProvider;
 import com.example.app.common.runtime.AppRuntime;
 import com.example.app.feature.replay.c.CInvoker;
@@ -13,7 +16,10 @@ import com.example.app.feature.replay.c.ProcessBuilderCInvoker;
 import com.example.app.feature.replay.c.SocketCInvoker;
 import com.example.app.feature.replay.controller.ws.WsHub;
 import com.example.app.feature.replay.engine.ReplayEngine;
-import com.example.app.feature.replay.repository.EventLogRepository;
+import com.example.app.feature.replay.mapper.AlertLogMapper;
+import com.example.app.feature.replay.mapper.OperationLogMapper;
+import com.example.app.feature.replay.repository.AlertLogRepository;
+import com.example.app.feature.replay.repository.OperationLogRepository;
 import com.example.app.feature.replay.service.ReplayControlConfig;
 import com.example.app.feature.replay.service.ReplayCoordinator;
 import com.example.app.feature.replay.service.ReplayResponseService;
@@ -30,6 +36,8 @@ import com.example.app.feature.replay.service.ReplaySessionService;
  */
 @WebListener
 public class AppInitListener implements ServletContextListener {
+	
+	private static final Logger log = LoggerFactory.getLogger(AppInitListener.class);
 
     /**
      * アプリケーション起動時に呼ばれます。
@@ -45,6 +53,9 @@ public class AppInitListener implements ServletContextListener {
     @Override
     public void contextInitialized(ServletContextEvent sce) {
         try {
+        	
+        		log.info("contextInitialized start");
+        	
             ServletContext application = sce.getServletContext();
 
             // JNDI から DataSource を取得
@@ -65,8 +76,10 @@ public class AppInitListener implements ServletContextListener {
             WsHub wsHub = new WsHub();
             ReplaySessionService sessionService = new ReplaySessionService(controlConfig);
             ReplayResponseService responseService = new ReplayResponseService(sessionService);
-            EventLogRepository eventLogRepository = new EventLogRepository(ds);
-            AlertHistoryRepository alertHistoryRepository = new AlertHistoryRepository(ds);
+            OperationLogRepository operationLogRepository = new OperationLogRepository(ds);
+            AlertLogRepository alertLogRepository = new AlertLogRepository(ds);
+            OperationLogMapper operationMapper = new OperationLogMapper();
+            AlertLogMapper alertLogMapper = new AlertLogMapper();
 
             // C 呼び出し方式を設定値から決定
             CInvoker cInvoker = createCInvoker(application);
@@ -75,8 +88,10 @@ public class AppInitListener implements ServletContextListener {
                     sessionService,
                     responseService,
                     wsHub,
-                    eventLogRepository,
-                    alertHistoryRepository,
+                    operationLogRepository,
+                    alertLogRepository,
+                    operationMapper,
+                    alertLogMapper,
                     cInvoker
             );
 
@@ -100,8 +115,11 @@ public class AppInitListener implements ServletContextListener {
 
             // replay エンジン起動
             engine.start();
+            
+            log.info("contextInitialized end");
 
         } catch (Exception e) {
+        		log.error("AppInitListener failed", e);
             throw new RuntimeException("AppInitListener failed: " + e.getMessage(), e);
         }
     }

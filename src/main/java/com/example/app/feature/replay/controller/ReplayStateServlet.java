@@ -21,7 +21,7 @@ import com.example.app.feature.replay.dto.ReplayStateResponse;
  * 主に画面初期表示時や、必要に応じた状態再取得で使用します。
  * </p>
  */
-@WebServlet("/api/replay/state")
+@WebServlet("/ReplayFunction_v3/replay/state")
 public class ReplayStateServlet extends HttpServlet {
 
     private static final long serialVersionUID = 1L;

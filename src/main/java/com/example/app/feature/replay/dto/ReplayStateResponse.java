@@ -3,6 +3,8 @@ package com.example.app.feature.replay.dto;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.example.app.feature.replay.model.ReplayAvduAlert;
+
 /**
  * replay の現在状態を返すレスポンスDTOです。
  *
@@ -52,24 +54,14 @@ public class ReplayStateResponse {
      */
     private int selectedVduNo;
 
-    /**
-     * 表示用URLです。
-     *
-     * <p>
-     * OPENイベントで pageId から解決した URL を保持します。
-     * vdu.html 側ではこの値を iframe の src に設定します。
-     * </p>
-     */
-    private String displayUrl;
+    /** 最後に適用した pageId */
+    private String lastPageId;
 
-    /** 現在表示中の pageId */
-    private String currentPageId;
+    /** 最後に適用した operation_id */
+    private Long lastAppliedOperationId;
 
-    /** 最後に適用した event_id */
-    private Long lastAppliedEventId;
-
-    /** 最後に適用した event_type */
-    private String lastAppliedEventType;
+    /** 最後に適用した action_type */
+    private String lastAppliedActionType;
 
     /** 最後に適用した vdu_no */
     private Integer lastAppliedVduNo;
@@ -84,7 +76,7 @@ public class ReplayStateResponse {
     private String lastControlId;
 
     /** 最後に適用した symbol_id */
-    private String lastSymbolId;
+    private String lastButtonId;
 
     /** 最後に適用した value */
     private String lastValue;
@@ -109,191 +101,186 @@ public class ReplayStateResponse {
     /** AVDU 向けアラート一覧 */
     private List<ReplayAvduAlert> avduAlerts = new ArrayList<ReplayAvduAlert>();
 
-    public String getClientType() {
-        return clientType;
-    }
 
-    public void setClientType(String clientType) {
-        this.clientType = clientType;
-    }
+	public String getClientType() {
+		return clientType;
+	}
 
-    public void setRoomId(String roomId) {
-        this.roomId = roomId;
-    }
+	public void setClientType(String clientType) {
+		this.clientType = clientType;
+	}
 
-    public String getOperatorName() {
-        return operatorName;
-    }
+	public String getOperatorName() {
+		return operatorName;
+	}
 
-    public void setOperatorName(String operatorName) {
-        this.operatorName = operatorName;
-    }
+	public void setOperatorName(String operatorName) {
+		this.operatorName = operatorName;
+	}
 
-    public String getOperatorIp() {
-        return operatorIp;
-    }
+	public String getOperatorIp() {
+		return operatorIp;
+	}
 
-    public void setOperatorIp(String operatorIp) {
-        this.operatorIp = operatorIp;
-    }
+	public void setOperatorIp(String operatorIp) {
+		this.operatorIp = operatorIp;
+	}
 
-    public String getPlayStatus() {
-        return playStatus;
-    }
+	public String getPlayStatus() {
+		return playStatus;
+	}
 
-    public void setPlayStatus(String playStatus) {
-        this.playStatus = playStatus;
-    }
+	public void setPlayStatus(String playStatus) {
+		this.playStatus = playStatus;
+	}
 
-    public String getStartDateTime() {
-        return startDateTime;
-    }
+	public String getStartDateTime() {
+		return startDateTime;
+	}
 
-    public void setStartDateTime(String startDateTime) {
-        this.startDateTime = startDateTime;
-    }
+	public void setStartDateTime(String startDateTime) {
+		this.startDateTime = startDateTime;
+	}
 
-    public int getPeriodHours() {
-        return periodHours;
-    }
+	public int getPeriodHours() {
+		return periodHours;
+	}
 
-    public void setPeriodHours(int periodHours) {
-        this.periodHours = periodHours;
-    }
+	public void setPeriodHours(int periodHours) {
+		this.periodHours = periodHours;
+	}
 
-    public String getCurrentReplayTime() {
-        return currentReplayTime;
-    }
+	public String getCurrentReplayTime() {
+		return currentReplayTime;
+	}
 
-    public void setCurrentReplayTime(String currentReplayTime) {
-        this.currentReplayTime = currentReplayTime;
-    }
+	public void setCurrentReplayTime(String currentReplayTime) {
+		this.currentReplayTime = currentReplayTime;
+	}
 
-    public int getSpeed() {
-        return speed;
-    }
+	public int getSpeed() {
+		return speed;
+	}
 
-    public void setSpeed(int speed) {
-        this.speed = speed;
-    }
+	public void setSpeed(int speed) {
+		this.speed = speed;
+	}
 
-    public String getLastCommand() {
-        return lastCommand;
-    }
+	public String getLastCommand() {
+		return lastCommand;
+	}
 
-    public void setLastCommand(String lastCommand) {
-        this.lastCommand = lastCommand;
-    }
+	public void setLastCommand(String lastCommand) {
+		this.lastCommand = lastCommand;
+	}
 
-    public int getSelectedVduNo() {
-        return selectedVduNo;
-    }
+	public int getSelectedVduNo() {
+		return selectedVduNo;
+	}
 
-    public void setSelectedVduNo(int selectedVduNo) {
-        this.selectedVduNo = selectedVduNo;
-    }
+	public void setSelectedVduNo(int selectedVduNo) {
+		this.selectedVduNo = selectedVduNo;
+	}
 
-    public String getDisplayUrl() {
-        return displayUrl;
-    }
+	public String getLastPageId() {
+		return lastPageId;
+	}
 
-    public void setDisplayUrl(String displayUrl) {
-        this.displayUrl = displayUrl;
-    }
+	public void setLastPageId(String lastPageId) {
+		this.lastPageId = lastPageId;
+	}
 
-    public String getCurrentPageId() {
-        return currentPageId;
-    }
+	public Long getLastAppliedOperationId() {
+		return lastAppliedOperationId;
+	}
 
-    public void setCurrentPageId(String currentPageId) {
-        this.currentPageId = currentPageId;
-    }
+	public void setLastAppliedOperationId(Long lastAppliedOperationId) {
+		this.lastAppliedOperationId = lastAppliedOperationId;
+	}
 
-    public Long getLastAppliedEventId() {
-        return lastAppliedEventId;
-    }
+	public String getLastAppliedActionType() {
+		return lastAppliedActionType;
+	}
 
-    public void setLastAppliedEventId(Long lastAppliedEventId) {
-        this.lastAppliedEventId = lastAppliedEventId;
-    }
+	public void setLastAppliedActionType(String lastAppliedActionType) {
+		this.lastAppliedActionType = lastAppliedActionType;
+	}
 
-    public String getLastAppliedEventType() {
-        return lastAppliedEventType;
-    }
+	public Integer getLastAppliedVduNo() {
+		return lastAppliedVduNo;
+	}
 
-    public void setLastAppliedEventType(String lastAppliedEventType) {
-        this.lastAppliedEventType = lastAppliedEventType;
-    }
+	public void setLastAppliedVduNo(Integer lastAppliedVduNo) {
+		this.lastAppliedVduNo = lastAppliedVduNo;
+	}
 
-    public Integer getLastAppliedVduNo() {
-        return lastAppliedVduNo;
-    }
+	public String getLastApplyResult() {
+		return lastApplyResult;
+	}
 
-    public void setLastAppliedVduNo(Integer lastAppliedVduNo) {
-        this.lastAppliedVduNo = lastAppliedVduNo;
-    }
+	public void setLastApplyResult(String lastApplyResult) {
+		this.lastApplyResult = lastApplyResult;
+	}
 
-    public String getLastApplyResult() {
-        return lastApplyResult;
-    }
+	public String getLastAppliedOccurredAt() {
+		return lastAppliedOccurredAt;
+	}
 
-    public void setLastApplyResult(String lastApplyResult) {
-        this.lastApplyResult = lastApplyResult;
-    }
+	public void setLastAppliedOccurredAt(String lastAppliedOccurredAt) {
+		this.lastAppliedOccurredAt = lastAppliedOccurredAt;
+	}
 
-    public String getLastAppliedOccurredAt() {
-        return lastAppliedOccurredAt;
-    }
+	public String getLastControlId() {
+		return lastControlId;
+	}
 
-    public void setLastAppliedOccurredAt(String lastAppliedOccurredAt) {
-        this.lastAppliedOccurredAt = lastAppliedOccurredAt;
-    }
+	public void setLastControlId(String lastControlId) {
+		this.lastControlId = lastControlId;
+	}
 
-    public String getLastControlId() {
-        return lastControlId;
-    }
+	public String getLastButtonId() {
+		return lastButtonId;
+	}
 
-    public void setLastControlId(String lastControlId) {
-        this.lastControlId = lastControlId;
-    }
+	public void setLastButtonId(String lastButtonId) {
+		this.lastButtonId = lastButtonId;
+	}
 
-    public String getLastSymbolId() {
-        return lastSymbolId;
-    }
+	public String getLastValue() {
+		return lastValue;
+	}
 
-    public void setLastSymbolId(String lastSymbolId) {
-        this.lastSymbolId = lastSymbolId;
-    }
+	public void setLastValue(String lastValue) {
+		this.lastValue = lastValue;
+	}
 
-    public String getLastValue() {
-        return lastValue;
-    }
+	public boolean isCanOperate() {
+		return canOperate;
+	}
 
-    public void setLastValue(String lastValue) {
-        this.lastValue = lastValue;
-    }
-    
-    public boolean isCanOperate() {
-        return canOperate;
-    }
+	public void setCanOperate(boolean canOperate) {
+		this.canOperate = canOperate;
+	}
 
-    public void setCanOperate(boolean canOperate) {
-        this.canOperate = canOperate;
-    }
+	public String getControllerUserName() {
+		return controllerUserName;
+	}
 
-    public String getControllerUserName() {
-        return controllerUserName;
-    }
+	public void setControllerUserName(String controllerUserName) {
+		this.controllerUserName = controllerUserName;
+	}
 
-    public void setControllerUserName(String controllerUserName) {
-        this.controllerUserName = controllerUserName;
-    }
-    
-    public List<ReplayAvduAlert> getAvduAlerts() {
-        return avduAlerts;
-    }
+	public List<ReplayAvduAlert> getAvduAlerts() {
+		return avduAlerts;
+	}
 
-    public void setAvduAlerts(List<ReplayAvduAlert> avduAlerts) {
-        this.avduAlerts = avduAlerts;
-    }
+	public void setAvduAlerts(List<ReplayAvduAlert> avduAlerts) {
+		this.avduAlerts = avduAlerts;
+	}
+
+	public void setRoomId(String roomId) {
+		this.roomId = roomId;
+	}
+
+ 
 }

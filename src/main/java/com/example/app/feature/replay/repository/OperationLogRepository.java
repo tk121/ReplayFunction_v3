@@ -12,22 +12,22 @@ import java.util.Map;
 
 import javax.sql.DataSource;
 
-import com.example.app.feature.replay.entity.EventLog;
+import com.example.app.feature.replay.entity.OperationLog;
 
 /**
- * event_log テーブルにアクセスする Repository です。
+ * operation_log テーブルにアクセスする Repository です。
  *
  * <p>
  * replay 機能で必要となる操作履歴の取得を担当します。
- * SQL実行と ResultSet → EventLog への変換責務を持ちます。
+ * SQL実行と ResultSet → operationLog への変換責務を持ちます。
  * </p>
  */
-public class EventLogRepository {
+public class OperationLogRepository {
 
     /** DB接続元 */
     private final DataSource dataSource;
 
-    public EventLogRepository(DataSource dataSource) {
+    public OperationLogRepository(DataSource dataSource) {
         this.dataSource = dataSource;
     }
 
@@ -44,15 +44,15 @@ public class EventLogRepository {
      * @return 取得したイベント一覧
      * @throws Exception DBアクセス失敗時
      */
-    public List<EventLog> findEventsBetween(LocalDateTime fromExclusive, LocalDateTime toInclusive) throws Exception {
+    public List<OperationLog> findEventsBetween(LocalDateTime fromExclusive, LocalDateTime toInclusive) throws Exception {
         String sql =
-                "SELECT event_id, unit_no, graphic_type, vdu_no, occurred_at, action_type, page_id, control_id, symbol_id, value " +
-                "  FROM event_log " +
+                "SELECT operation_id, unit_no, graphic_type, vdu_no, occurred_at, action_type, page_id, control_id, button_id, value " +
+                "  FROM operation_log " +
                 " WHERE occurred_at > ? " +
                 "   AND occurred_at <= ? " +
-                " ORDER BY occurred_at ASC, event_id ASC";
+                " ORDER BY occurred_at ASC, operation_id ASC";
 
-        List<EventLog> list = new ArrayList<EventLog>();
+        List<OperationLog> list = new ArrayList<OperationLog>();
 
         Connection con = null;
         PreparedStatement ps = null;
@@ -95,11 +95,11 @@ public class EventLogRepository {
      */
     public Map<Integer, String> findLatestOpenPageMap(LocalDateTime replayTime) throws Exception {
         String sql =
-                "SELECT vdu_no, page_id, occurred_at, event_id " +
-                "  FROM event_log " +
+                "SELECT vdu_no, page_id, occurred_at, operation_id " +
+                "  FROM operation_log " +
                 " WHERE action_type = 'OPEN' " +
                 "   AND occurred_at <= ? " +
-                " ORDER BY vdu_no ASC, occurred_at DESC, event_id DESC";
+                " ORDER BY vdu_no ASC, occurred_at DESC, operation_id DESC";
 
         Map<Integer, String> result = new LinkedHashMap<Integer, String>();
 
@@ -131,30 +131,30 @@ public class EventLogRepository {
     }
 
     /**
-     * ResultSet の現在行を EventLog に変換します。
+     * ResultSet の現在行を operationLog に変換します。
      *
      * @param rs ResultSet
-     * @return EventLog
+     * @return operationLog
      * @throws Exception 変換失敗時
      */
-    private EventLog mapRow(ResultSet rs) throws Exception {
-        EventLog eventLog = new EventLog();
-        eventLog.setEventId(rs.getLong("event_id"));
-        eventLog.setUnitNo((Integer) rs.getObject("unit_no"));
-        eventLog.setGraphicType(rs.getString("graphic_type"));
-        eventLog.setVduNo(rs.getInt("vdu_no"));
+    private OperationLog mapRow(ResultSet rs) throws Exception {
+        OperationLog operationLog = new OperationLog();
+        operationLog.setOperationId(rs.getLong("operation_id"));
+        operationLog.setUnitNo((Integer) rs.getObject("unit_no"));
+        operationLog.setGraphicType(rs.getString("graphic_type"));
+        operationLog.setVduNo(rs.getInt("vdu_no"));
 
         Timestamp ts = rs.getTimestamp("occurred_at");
         if (ts != null) {
-            eventLog.setOccurredAt(ts.toLocalDateTime());
+            operationLog.setOccurredAt(ts.toLocalDateTime());
         }
 
-        eventLog.setActionType(rs.getString("event_type"));
-        eventLog.setPageId(rs.getString("page_id"));
-        eventLog.setControlId(rs.getString("control_id"));
-        eventLog.setSymbolId(rs.getString("symbol_id"));
-        eventLog.setValue(rs.getString("value"));
-        return eventLog;
+        operationLog.setActionType(rs.getString("action_type"));
+        operationLog.setPageId(rs.getString("page_id"));
+        operationLog.setControlId(rs.getString("control_id"));
+        operationLog.setButtonId(rs.getString("button_id"));
+        operationLog.setValue(rs.getString("value"));
+        return operationLog;
     }
 
     /**

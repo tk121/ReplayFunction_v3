@@ -31,14 +31,13 @@
     <div class="line">表示期間: <span id="periodHoursLabel">-</span></div>
     <div class="line">現在位置: <span id="currentReplayTimeLabel">-</span></div>
     <div class="line">速度: <span id="speedLabel">-</span></div>
-    <div class="line">表示URL: <span id="displayUrlLabel">-</span></div>
     <div class="line">現在PageId: <span id="currentPageIdLabel">-</span></div>
     <div class="line">最終イベントID: <span id="lastAppliedEventIdLabel">-</span></div>
     <div class="line">最終イベント種別: <span id="lastAppliedEventTypeLabel">-</span></div>
     <div class="line">最終適用結果: <span id="lastApplyResultLabel">-</span></div>
     <div class="line">最終操作時刻: <span id="lastAppliedOccurredAtLabel">-</span></div>
     <div class="line">controlId: <span id="lastControlIdLabel">-</span></div>
-    <div class="line">symbolId: <span id="lastSymbolIdLabel">-</span></div>
+    <div class="line">buttonId: <span id="lastButtonIdIdLabel">-</span></div>
     <div class="line">value: <span id="lastValueLabel">-</span></div>
   </div>
 
@@ -51,7 +50,7 @@
       var vduNo = params.get("vdu") || "1";
       document.getElementById("vduTitle").textContent = "VDU" + vduNo;
       if (window.ReplayWs) {
-        window.ReplayWs.connect("global", "VDU", vduNo);
+        window.ReplayWs.connect("replayMode", "VDU", vduNo);
         window.ReplayWs.fetchCurrentState(vduNo);
       }
     })();

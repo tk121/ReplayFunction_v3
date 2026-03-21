@@ -71,7 +71,7 @@
       var clientId = "avdu-" + new Date().getTime();
 
       if (window.ReplayWs) {
-        window.ReplayWs.connect("global", "AVDU", "", clientId);
+        window.ReplayWs.connect("replayMode", "AVDU", "", clientId);
         window.ReplayWs.fetchCurrentState("AVDU", 0, clientId);
       }
     })();

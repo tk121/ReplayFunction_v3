@@ -65,6 +65,72 @@
 			<version>1.1</version>
 			<scope>provided</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+			<version>42.7.10</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- ============================= -->
+		<!-- ① SLF4J（ログAPI：コード側で使用） -->
+		<!-- ============================= -->
+		<!--
+        ・アプリケーションコードはこのAPIだけを使う
+        ・Logger / LoggerFactory を提供
+        ・実際のログ出力はしない（あくまで窓口）
+    		-->
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+			<version>2.0.17</version>
+		</dependency>
+
+		<!-- ============================= -->
+		<!-- ② Log4j2 API -->
+		<!-- ============================= -->
+		<!--
+        ・Log4j2の内部API
+        ・通常は直接使わない（SLF4J経由で使うため）
+        ・log4j-core が内部的に利用する
+    		-->
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-api</artifactId>
+			<version>2.23.1</version>
+		</dependency>
+
+		<!-- ============================= -->
+		<!-- ③ Log4j2 Core（実体） -->
+		<!-- ============================= -->
+		<!--
+        ・実際にログを出力するエンジン本体
+        ・log4j2.xml を読み込む
+        ・ファイル出力、ローテーション、フォーマットなどを担当
+    		-->
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-core</artifactId>
+			<version>2.23.1</version>
+		</dependency>
+
+		<!-- ============================= -->
+		<!-- ④ SLF4J → Log4j2 の橋渡し -->
+		<!-- ============================= -->
+		<!--
+        ★これが一番重要★
+
+        ・SLF4Jで書いたログを Log4j2 に流す
+        ・LoggerFactory → Log4j2 に接続される
+
+        これがないと：
+        → ログはどこにも出ない（または警告が出る）
+    		-->
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-slf4j2-impl</artifactId>
+			<version>2.23.1</version>
+		</dependency>
 
 	</dependencies>
 

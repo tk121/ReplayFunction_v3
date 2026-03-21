@@ -22,7 +22,7 @@ import com.example.app.feature.replay.dto.ReplayStateResponse;
  * heartbeat 時刻を更新します。
  * </p>
  */
-@WebServlet("/api/replay/heartbeat")
+@WebServlet("/ReplayFunction_v3/replay/heartbeat")
 public class ReplayHeartbeatServlet extends HttpServlet {
 
     private static final long serialVersionUID = 1L;

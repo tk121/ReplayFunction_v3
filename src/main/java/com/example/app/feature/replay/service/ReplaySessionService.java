@@ -214,7 +214,7 @@ public class ReplaySessionService {
 	 * roomId を正規化します。
 	 *
 	 * <p>
-	 * 未指定の場合は global を返します。
+	 * 未指定の場合は replayMode を返します。
 	 * </p>
 	 *
 	 * @param roomId roomId
@@ -222,7 +222,7 @@ public class ReplaySessionService {
 	 */
 	public String normalizeRoomId(String roomId) {
 		if (roomId == null || roomId.trim().length() == 0) {
-			return "global";
+			return "replayMode";
 		}
 		return roomId.trim();
 	}

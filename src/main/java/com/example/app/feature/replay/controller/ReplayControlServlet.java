@@ -8,11 +8,15 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.example.app.common.json.JsonUtil;
 import com.example.app.common.runtime.AppRuntime;
 import com.example.app.feature.replay.dto.ErrorResponse;
 import com.example.app.feature.replay.dto.ReplayControlRequest;
 import com.example.app.feature.replay.dto.ReplayStateResponse;
+import com.example.app.feature.replay.service.ReplayCoordinator;
 
 /**
  * replay 制御API用 Servlet です。
@@ -22,8 +26,10 @@ import com.example.app.feature.replay.dto.ReplayStateResponse;
  * ReplayCoordinator に処理を委譲します。
  * </p>
  */
-@WebServlet("/api/replay/control")
+@WebServlet("/ReplayFunction_v3/replay/control")
 public class ReplayControlServlet extends HttpServlet {
+	
+	private static final Logger log = LoggerFactory.getLogger(ReplayCoordinator.class);
 
     private static final long serialVersionUID = 1L;
 

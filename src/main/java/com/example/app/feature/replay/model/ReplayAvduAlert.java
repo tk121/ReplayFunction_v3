@@ -12,8 +12,8 @@ public class ReplayAvduAlert {
     private String alertName2;
     private String alertSeverity;
     private Integer columnNo;
-    private Integer firsthit;
-    private Integer flick;
+    private boolean firsthit;
+    private boolean flick;
     private String yokokuColor;
 
     public String getAlertId() {
@@ -72,19 +72,19 @@ public class ReplayAvduAlert {
         this.columnNo = columnNo;
     }
 
-    public Integer getFirsthit() {
+    public boolean getFirsthit() {
         return firsthit;
     }
 
-    public void setFirsthit(Integer firsthit) {
+    public void setFirsthit(boolean firsthit) {
         this.firsthit = firsthit;
     }
 
-    public Integer getFlick() {
+    public boolean getFlick() {
         return flick;
     }
 
-    public void setFlick(Integer flick) {
+    public void setFlick(boolean flick) {
         this.flick = flick;
     }
 

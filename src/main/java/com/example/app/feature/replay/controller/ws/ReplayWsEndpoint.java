@@ -41,9 +41,9 @@ public class ReplayWsEndpoint {
             int vduNo = parseInt(getQueryParam(session, "vduNo"), 0);
             String clientId = getQueryParam(session, "clientId");
 
-            // roomId 未指定時は global を使用
+            // roomId 未指定時は replayMode を使用
             if (roomId == null || roomId.length() == 0) {
-                roomId = "global";
+                roomId = "replayMode";
             }
 
             WsClient client = new WsClient(session, roomId, clientType, vduNo, clientId);
@@ -57,6 +57,9 @@ public class ReplayWsEndpoint {
                     client,
                     state,
                     AppRuntime.getReplayResponseService());
+            
+            // 初回接続時に、必要な現在スナップショットを準備
+            AppRuntime.getReplayCoordinator().prepareCurrentDisplayState(state, clientType);
 
         } catch (Exception e) {
             try {
@@ -84,7 +87,7 @@ public class ReplayWsEndpoint {
      * 例:
      * </p>
      * <pre>
-     * /ws/replay?roomId=global&clientType=VDU&vduNo=1
+     * /ws/replay?roomId=replayMode&clientType=VDU&vduNo=1
      * </pre>
      *
      * @param session WebSocket セッション

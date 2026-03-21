@@ -11,6 +11,11 @@ import javax.websocket.Session;
  * </p>
  */
 public class WsClient {
+	
+    public static final String CLIENT_TYPE_CONTROL = "CONTROL";
+    public static final String CLIENT_TYPE_VDU = "VDU";
+    public static final String CLIENT_TYPE_AVDU = "AVDU";
+
 
 	/** WebSocket セッション */
 	private final Session session;
@@ -84,5 +89,17 @@ public class WsClient {
 	
     public String getClientId() {
         return clientId;
+    }
+    
+    public boolean isControl() {
+        return CLIENT_TYPE_CONTROL.equals(clientType);
+    }
+
+    public boolean isVdu() {
+        return CLIENT_TYPE_VDU.equals(clientType);
+    }
+
+    public boolean isAvdu() {
+        return CLIENT_TYPE_AVDU.equals(clientType);
     }
 }

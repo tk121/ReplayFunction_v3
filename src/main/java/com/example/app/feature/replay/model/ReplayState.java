@@ -47,11 +47,11 @@ public class ReplayState {
 	/** 最後に実行したコマンド */
 	private String lastCommand;
 
-	/** 最後に適用した event_id */
-	private Long lastAppliedEventId;
+	/** 最後に適用した operation_id */
+	private Long lastAppliedOperationId;
 
-	/** 最後に適用した event_type */
-	private String lastAppliedEventType;
+	/** 最後に適用した action_type */
+	private String lastAppliedActionType;
 
 	/** 最後に適用した vdu_no */
 	private Integer lastAppliedVduNo;
@@ -66,7 +66,7 @@ public class ReplayState {
 	private String lastControlId;
 
 	/** 最後に適用した symbol_id */
-	private String lastSymbolId;
+	private String lastButtonId;
 
 	/** 最後に適用した value */
 	private String lastValue;
@@ -103,6 +103,9 @@ public class ReplayState {
 	 * </p>
 	 */
 	private final Map<Integer, ReplayVduState> vduStateMap = new ConcurrentHashMap<Integer, ReplayVduState>();
+	
+    /** AVDU の現在表示状態 */
+    private ReplayAvduState avduState = new ReplayAvduState();
 
 	public ReplayState() {
 		this.playStatus = STATUS_STOPPED;
@@ -111,9 +114,6 @@ public class ReplayState {
 		this.lastCommand = "INIT";
 	}
 	
-    /** AVDU の現在表示状態 */
-    private ReplayAvduState avduState = new ReplayAvduState();
-
 	/**
 	 * 指定した VDU の状態を取得します。
 	 *
@@ -235,20 +235,20 @@ public class ReplayState {
 		this.lastCommand = lastCommand;
 	}
 
-	public Long getLastAppliedEventId() {
-		return lastAppliedEventId;
+	public Long getLastAppliedOperationId() {
+		return lastAppliedOperationId;
 	}
 
-	public void setLastAppliedEventId(Long lastAppliedEventId) {
-		this.lastAppliedEventId = lastAppliedEventId;
+	public void setLastAppliedOperationId(Long lastAppliedOperationId) {
+		this.lastAppliedOperationId = lastAppliedOperationId;
 	}
 
-	public String getLastAppliedEventType() {
-		return lastAppliedEventType;
+	public String getLastAppliedActionType() {
+		return lastAppliedActionType;
 	}
 
-	public void setLastAppliedEventType(String lastAppliedEventType) {
-		this.lastAppliedEventType = lastAppliedEventType;
+	public void setLastAppliedActionType(String lastAppliedActionType) {
+		this.lastAppliedActionType = lastAppliedActionType;
 	}
 
 	public Integer getLastAppliedVduNo() {
@@ -283,12 +283,12 @@ public class ReplayState {
 		this.lastControlId = lastControlId;
 	}
 
-	public String getLastSymbolId() {
-		return lastSymbolId;
+	public String getLastButtonId() {
+		return lastButtonId;
 	}
 
-	public void setLastSymbolId(String lastSymbolId) {
-		this.lastSymbolId = lastSymbolId;
+	public void setLastButtonId(String lastButtonId) {
+		this.lastButtonId = lastButtonId;
 	}
 
 	public String getLastValue() {

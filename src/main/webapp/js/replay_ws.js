@@ -53,7 +53,7 @@ window.ReplayWs = (function () {
     var protocol = location.protocol === "https:" ? "wss:" : "ws:";
     var basePath = location.pathname.substring(0, location.pathname.lastIndexOf("/"));
     var url = protocol + "//" + location.host + basePath + "/ws/replay"
-      + "?roomId=" + encodeURIComponent(roomId || "global")
+      + "?roomId=" + encodeURIComponent(roomId || "replayMode")
       + "&clientType=" + encodeURIComponent(clientType || "")
       + "&vduNo=" + encodeURIComponent(vduNo || "")
 	        + "&clientId=" + encodeURIComponent(clientId || "");
@@ -77,9 +77,10 @@ window.ReplayWs = (function () {
   /**
    * 現在状態を HTTP で再取得します。
    */
-  function fetchCurrentState(vduNo, clientId) {
-    fetch("api/replay/state?roomId=global&vduNo="
-      + encodeURIComponent(vduNo || 0)
+  function fetchCurrentState(clientType, vduNo, clientId) {
+    fetch("ReplayFunction_v3/replay/state?roomId=replayMode"
+      + "&clientType=" + encodeURIComponent(clientType || "CONTROL")
+      + "&vduNo=" + encodeURIComponent(vduNo || 0)
       + "&clientId=" + encodeURIComponent(clientId || ""), {
       method: "GET"
     }).then(function (res) {
@@ -92,6 +93,49 @@ window.ReplayWs = (function () {
     }).catch(function (e) {
       console.error(e);
     });
+  }
+  
+  function renderAvduAlerts(alerts) {
+    var tbody = getById("avduAlertBody");
+    if (!tbody) {
+      return;
+    }
+
+    tbody.innerHTML = "";
+
+    if (!alerts || !alerts.length) {
+      var trEmpty = document.createElement("tr");
+      var tdEmpty = document.createElement("td");
+      tdEmpty.colSpan = 10;
+      tdEmpty.textContent = "該当アラートなし";
+      trEmpty.appendChild(tdEmpty);
+      tbody.appendChild(trEmpty);
+      return;
+    }
+
+    for (var i = 0; i < alerts.length; i++) {
+      var a = alerts[i];
+      var tr = document.createElement("tr");
+
+      appendCell(tr, a.alertId);
+      appendCell(tr, a.unitNo);
+      appendCell(tr, a.alertTag);
+      appendCell(tr, a.alertName1);
+      appendCell(tr, a.alertName2);
+      appendCell(tr, a.alertSeverity);
+      appendCell(tr, a.columnNo);
+      appendCell(tr, a.firsthit);
+      appendCell(tr, a.flick);
+      appendCell(tr, a.yokokuColor);
+
+      tbody.appendChild(tr);
+    }
+  }
+
+  function appendCell(tr, value) {
+    var td = document.createElement("td");
+    td.textContent = (value === null || value === undefined || value === "") ? "-" : value;
+    tr.appendChild(td);
   }
 
   /**
@@ -106,14 +150,13 @@ window.ReplayWs = (function () {
     setText("currentReplayTimeLabel", state.currentReplayTime);
     setText("speedLabel", state.speed ? state.speed + "x" : "-");
     setText("lastCommandLabel", state.lastCommand);
-    setText("displayUrlLabel", state.displayUrl);
-    setText("currentPageIdLabel", state.currentPageId);
-    setText("lastAppliedEventIdLabel", state.lastAppliedEventId);
-    setText("lastAppliedEventTypeLabel", state.lastAppliedEventType);
+    setText("currentPageIdLabel", state.lastPageId);
+    setText("lastAppliedEventIdLabel", state.lastAppliedOperationId);
+    setText("lastAppliedEventTypeLabel", state.lastAppliedActionType);
     setText("lastApplyResultLabel", state.lastApplyResult);
     setText("lastAppliedOccurredAtLabel", state.lastAppliedOccurredAt);
     setText("lastControlIdLabel", state.lastControlId);
-    setText("lastSymbolIdLabel", state.lastSymbolId);
+    setText("lastButtonIdIdLabel", state.lastButtonId);
     setText("lastValueLabel", state.lastValue);
 
 	// 操作可否のUI反映
@@ -121,11 +164,18 @@ window.ReplayWs = (function () {
 
 	// VDU画面では iframe の表示URLも更新
     var frame = getById("replayFrame");
-    if (frame && state.displayUrl) {
-      if (frame.getAttribute("src") !== state.displayUrl) {
-        frame.setAttribute("src", state.displayUrl);
+    if (frame && state.lastPageId) {
+		
+		var nextUrl = window.location.origin + "/ReplayFunction_v3/vdu/" + state.selectedVduNo + "/" +state.lastPageId + ".html";
+		console.log("Next URL: " + nextUrl);
+      if (frame.getAttribute("src") !== nextUrl) {
+        frame.setAttribute("src", nextUrl);
       }
     }
+	
+	if (state && state.clientType === "AVDU") {
+	     renderAvduAlerts(state.avduAlerts || []);
+	   }
   }
 
   return {

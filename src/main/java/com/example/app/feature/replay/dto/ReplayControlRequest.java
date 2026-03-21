@@ -22,7 +22,7 @@ public class ReplayControlRequest {
      * ルームIDです。
      *
      * <p>
-     * 現状は global 1つのみを想定していますが、
+     * 現状は replayMode 1つのみを想定していますが、
      * 将来的に複数ルーム対応する場合に備えて保持します。
      * </p>
      */

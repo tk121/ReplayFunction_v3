@@ -1,6 +1,9 @@
 package com.example.app.feature.replay.service;
 
+import java.util.ArrayList;
+
 import com.example.app.feature.replay.dto.ReplayStateResponse;
+import com.example.app.feature.replay.model.ReplayAvduState;
 import com.example.app.feature.replay.model.ReplayState;
 import com.example.app.feature.replay.model.ReplayVduState;
 
@@ -14,83 +17,112 @@ import com.example.app.feature.replay.model.ReplayVduState;
  * </p>
  */
 public class ReplayResponseService {
-	
-    /** 状態管理サービス */
-    private final ReplaySessionService sessionService;
 
-    public ReplayResponseService(ReplaySessionService sessionService) {
-        this.sessionService = sessionService;
-    }
+	/** 状態管理サービス */
+	private final ReplaySessionService sessionService;
 
-    /**
-     * 旧呼び出し互換用です。
-     */
-    public ReplayStateResponse buildResponse(ReplayState state, int vduNo) {
-        return buildResponse(state, vduNo, null);
-    }
+	public ReplayResponseService(ReplaySessionService sessionService) {
+		this.sessionService = sessionService;
+	}
 
-    /**
-     * ReplayState からレスポンスDTOを生成します。
-     *
-     * <p>
-     * vduNo が 0 の場合は replay 全体の状態を返し、
-     * 1以上の場合は指定 VDU の表示状態を含めて返します。
-     * </p>
-     *
-     * @param state 現在の replay 状態
-     * @param vduNo 対象 VDU 番号。0 の場合は全体状態
-     * @param clientId このレスポンスを受け取るクライアントID
-     * @return 画面返却用レスポンス
-     */
-    public ReplayStateResponse buildResponse(ReplayState state, int vduNo, String clientId) {
-        synchronized (state) {
-            ReplayStateResponse res = new ReplayStateResponse();
+	/**
+	 * 既存互換用。
+	 */
+	public ReplayStateResponse buildResponse(ReplayState state, int vduNo) {
+		return buildVduResponse(state, vduNo, null);
+	}
 
-            // replay 全体に共通する状態
-            res.setRoomId(state.getRoomId());
-            res.setOperatorName(state.getOperatorName());
-            res.setOperatorIp(state.getOperatorIp());
-            res.setPlayStatus(state.getPlayStatus());
-            res.setStartDateTime(state.getStartDateTime());
-            res.setPeriodHours(state.getPeriodHours());
-            res.setCurrentReplayTime(state.getCurrentReplayTime());
-            res.setSpeed(state.getSpeed());
-            res.setLastCommand(state.getLastCommand());
-            
-            // 排他制御表示用
-            res.setControllerUserName(state.getControllerUserName());
-            res.setCanOperate(sessionService.canOperate(state, clientId));
+	/**
+	 * 既存互換用。
+	 */
+	public ReplayStateResponse buildResponse(ReplayState state, int vduNo, String clientId) {
+		return buildVduResponse(state, vduNo, clientId);
+	}
 
-            if (vduNo > 0) {
-                // 指定VDUの個別状態をレスポンスへ反映する
-                ReplayVduState vduState = state.getOrCreateVduState(vduNo);
+	/**
+	 * ReplayState からレスポンスDTOを生成します。
+	 *
+	 * <p>
+	 * vduNo が 0 の場合は replay 全体の状態を返し、
+	 * 1以上の場合は指定 VDU の表示状態を含めて返します。
+	 * </p>
+	 *
+	 * @param state 現在の replay 状態
+	 * @param vduNo 対象 VDU 番号。0 の場合は全体状態
+	 * @param clientId このレスポンスを受け取るクライアントID
+	 * @return 画面返却用レスポンス
+	 */
+    public ReplayStateResponse buildControlResponse(ReplayState state, String clientId) {
+		synchronized (state) {
+			ReplayStateResponse res = new ReplayStateResponse();
+			populateCommon(res, state, clientId);
+			res.setClientType("CONTROL");
+			res.setSelectedVduNo(0);
+			populateWholeState(res, state);
+			return res;
+		}
+	}
 
-                res.setSelectedVduNo(vduNo);
-                res.setDisplayUrl(vduState.getDisplayUrl());
-                res.setCurrentPageId(vduState.getCurrentPageId());
-                res.setLastAppliedEventId(vduState.getLastAppliedEventId());
-                res.setLastAppliedEventType(vduState.getLastAppliedEventType());
-                res.setLastAppliedVduNo(vduState.getLastAppliedVduNo());
-                res.setLastApplyResult(vduState.getLastApplyResult());
-                res.setLastAppliedOccurredAt(vduState.getLastAppliedOccurredAt());
-                res.setLastControlId(vduState.getLastControlId());
-                res.setLastSymbolId(vduState.getLastSymbolId());
-                res.setLastValue(vduState.getLastValue());
+	public ReplayStateResponse buildVduResponse(ReplayState state, int vduNo, String clientId) {
+		synchronized (state) {
+			ReplayStateResponse res = new ReplayStateResponse();
+			populateCommon(res, state, clientId);
+			res.setClientType("VDU");
 
-            } else {
-                // replay 全体の最後の適用結果を返す
-                res.setSelectedVduNo(0);
-                res.setLastAppliedEventId(state.getLastAppliedEventId());
-                res.setLastAppliedEventType(state.getLastAppliedEventType());
-                res.setLastAppliedVduNo(state.getLastAppliedVduNo());
-                res.setLastApplyResult(state.getLastApplyResult());
-                res.setLastAppliedOccurredAt(state.getLastAppliedOccurredAt());
-                res.setLastControlId(state.getLastControlId());
-                res.setLastSymbolId(state.getLastSymbolId());
-                res.setLastValue(state.getLastValue());
-            }
+			ReplayVduState vduState = state.getOrCreateVduState(vduNo);
+			res.setSelectedVduNo(vduNo);
+			res.setLastPageId(vduState.getLastPageId());
+			res.setLastAppliedOperationId(vduState.getLastAppliedOperationId());
+			res.setLastAppliedActionType(vduState.getLastAppliedActionType());
+			res.setLastAppliedVduNo(vduState.getLastAppliedVduNo());
+			res.setLastApplyResult(vduState.getLastApplyResult());
+			res.setLastAppliedOccurredAt(vduState.getLastAppliedOccurredAt());
+			res.setLastControlId(vduState.getLastControlId());
+			res.setLastButtonId(vduState.getLastSymbolId());
+			res.setLastValue(vduState.getLastValue());
+			return res;
+		}
+	}
 
-            return res;
-        }
-    }
+	public ReplayStateResponse buildAvduResponse(ReplayState state, String clientId) {
+		synchronized (state) {
+			ReplayStateResponse res = new ReplayStateResponse();
+			populateCommon(res, state, clientId);
+			res.setClientType("AVDU");
+			res.setSelectedVduNo(0);
+
+			ReplayAvduState avduState = state.getAvduState();
+			if (avduState != null && avduState.getAlerts() != null) {
+				res.setAvduAlerts(
+						new ArrayList<com.example.app.feature.replay.model.ReplayAvduAlert>(avduState.getAlerts()));
+			}
+			return res;
+		}
+	}
+
+	private void populateCommon(ReplayStateResponse res, ReplayState state, String clientId) {
+		res.setRoomId(state.getRoomId());
+		res.setOperatorName(state.getOperatorName());
+		res.setOperatorIp(state.getOperatorIp());
+		res.setPlayStatus(state.getPlayStatus());
+		res.setStartDateTime(state.getStartDateTime());
+		res.setPeriodHours(state.getPeriodHours());
+		res.setCurrentReplayTime(state.getCurrentReplayTime());
+		res.setSpeed(state.getSpeed());
+		res.setLastCommand(state.getLastCommand());
+
+		res.setControllerUserName(state.getControllerUserName());
+		res.setCanOperate(sessionService.canOperate(state, clientId));
+	}
+
+	private void populateWholeState(ReplayStateResponse res, ReplayState state) {
+		res.setLastAppliedOperationId(state.getLastAppliedOperationId());
+		res.setLastAppliedActionType(state.getLastAppliedActionType());
+		res.setLastAppliedVduNo(state.getLastAppliedVduNo());
+		res.setLastApplyResult(state.getLastApplyResult());
+		res.setLastAppliedOccurredAt(state.getLastAppliedOccurredAt());
+		res.setLastControlId(state.getLastControlId());
+		res.setLastButtonId(state.getLastButtonId());
+		res.setLastValue(state.getLastValue());
+	}
 }

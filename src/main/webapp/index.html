@@ -31,7 +31,7 @@
 
   <div class="row">
     <span class="label">表示日:</span>
-    <input type="date" id="targetDate">
+    <input type="date" id="targetDate" value="2026-01-01">
   </div>
 
   <div class="row">
@@ -45,7 +45,10 @@
 
   <div class="row">
     <span class="label">開始時刻:</span>
-    <select id="startHour"></select>
+    <input type="time" id="startTime" step="60">
+  </div>
+  <div class="row" id="startTimeRule" style="color:#666; font-size: 0.9em; margin-left: 144px;">
+    4時間表示の場合は 00,04,08,12,16,20 時台を指定してください
   </div>
 
   <div class="row btn-group">
@@ -67,6 +70,7 @@
     <button class="btnOpenVdu" data-vdu="2">VDU2</button>
     <button class="btnOpenVdu" data-vdu="3">VDU3</button>
     <button class="btnOpenVdu" data-vdu="4">VDU4</button>
+	<button id="btnOpenAvdu">AVDU</button>
   </div>
 
   <div class="status-box">

@@ -1,19 +1,30 @@
 package com.example.app.feature.replay.service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.example.app.feature.replay.c.CInvoker;
 import com.example.app.feature.replay.c.CRequest;
 import com.example.app.feature.replay.c.CResult;
+import com.example.app.feature.replay.controller.ws.WsClient;
 import com.example.app.feature.replay.controller.ws.WsHub;
 import com.example.app.feature.replay.dto.ReplayControlRequest;
 import com.example.app.feature.replay.dto.ReplayStateResponse;
-import com.example.app.feature.replay.entity.EventLog;
+import com.example.app.feature.replay.entity.AlertLog;
+import com.example.app.feature.replay.entity.OperationLog;
+import com.example.app.feature.replay.mapper.AlertLogMapper;
+import com.example.app.feature.replay.mapper.OperationLogMapper;
+import com.example.app.feature.replay.model.ReplayAvduAlert;
+import com.example.app.feature.replay.model.ReplayOperationEvent;
 import com.example.app.feature.replay.model.ReplayState;
 import com.example.app.feature.replay.model.ReplayVduState;
-import com.example.app.feature.replay.repository.EventLogRepository;
+import com.example.app.feature.replay.repository.AlertLogRepository;
+import com.example.app.feature.replay.repository.OperationLogRepository;
 
 /**
  * replay 機能の中核制御を担当するサービスです。
@@ -23,12 +34,14 @@ import com.example.app.feature.replay.repository.EventLogRepository;
  * </p>
  * <ul>
  *   <li>操作画面からのコマンドを受けて state を更新する</li>
- *   <li>event_log のイベントを 1件ずつ replay として適用する</li>
+ *   <li>operation_log のイベントを 1件ずつ replay として適用する</li>
  *   <li>C プロセスへイベントを渡して結果を state に反映する</li>
  *   <li>必要に応じて WebSocket で状態を配信する</li>
  * </ul>
  */
 public class ReplayCoordinator {
+
+	private static final Logger log = LoggerFactory.getLogger(ReplayCoordinator.class);
 
 	/** room ごとの state 管理サービス */
 	private final ReplaySessionService sessionService;
@@ -39,8 +52,17 @@ public class ReplayCoordinator {
 	/** WebSocket クライアントへの配信ハブ */
 	private final WsHub wsHub;
 
-	/** event_log 取得用 Repository */
-	private final EventLogRepository eventLogRepository;
+	/** operation_log 取得用 Repository */
+	private final OperationLogRepository operationLogRepository;
+
+	/** operation_log → CRequest 変換用 Mapper */
+	private final OperationLogMapper operationLogMapper;
+
+	/** alert_log 取得用 Repository */
+	private final AlertLogRepository alertLogRepository;
+
+	/** alert_log → ReplayAvduAlert 変換用 Mapper */
+	private final AlertLogMapper alertLogMapper;
 
 	/** C プロセス呼び出しインターフェース */
 	private final CInvoker cInvoker;
@@ -49,13 +71,19 @@ public class ReplayCoordinator {
 			ReplaySessionService sessionService,
 			ReplayResponseService responseService,
 			WsHub wsHub,
-			EventLogRepository eventLogRepository,
+			OperationLogRepository operationLogRepository,
+			AlertLogRepository alertLogRepository,
+			OperationLogMapper operationLogMapper,
+			AlertLogMapper alertLogMapper,
 			CInvoker cInvoker) {
 
 		this.sessionService = sessionService;
 		this.responseService = responseService;
 		this.wsHub = wsHub;
-		this.eventLogRepository = eventLogRepository;
+		this.operationLogRepository = operationLogRepository;
+		this.alertLogRepository = alertLogRepository;
+		this.operationLogMapper = operationLogMapper;
+		this.alertLogMapper = alertLogMapper;
 		this.cInvoker = cInvoker;
 	}
 
@@ -79,7 +107,7 @@ public class ReplayCoordinator {
 		ReplayState state = sessionService.getOrCreate(roomId);
 
 		// 共通項目（操作者、開始日時、期間など）を反映
-		sessionService.applyBaseFields(state, req, remoteIp);
+		//sessionService.applyBaseFields(state, req, remoteIp);
 
 		String command = req.getCommand();
 		if (command == null || command.trim().length() == 0) {
@@ -100,7 +128,7 @@ public class ReplayCoordinator {
 				state.setCurrentReplayTime(state.getStartDateTime());
 
 				// その時点での最新 OPEN をもとに画面スナップショットだけ再構成する
-				refreshOpenSnapshotOnly(state);
+				refreshAllSnapshots(state);
 
 			} else if ("PLAY".equals(command)) {
 				// 再生開始
@@ -130,7 +158,7 @@ public class ReplayCoordinator {
 				state.setPlayStatus(ReplayState.STATUS_STOPPED);
 				state.setSpeed(1);
 				state.setCurrentReplayTime(state.getStartDateTime());
-				refreshOpenSnapshotOnly(state);
+				refreshAllSnapshots(state);
 
 			} else if ("GO_TAIL".equals(command)) {
 				// 末尾へ移動
@@ -138,7 +166,7 @@ public class ReplayCoordinator {
 				state.setSpeed(1);
 				LocalDateTime tail = sessionService.calcTailDateTime(state);
 				state.setCurrentReplayTime(sessionService.formatDateTime(tail));
-				refreshOpenSnapshotOnly(state);
+				refreshAllSnapshots(state);
 
 			} else {
 				throw new IllegalArgumentException("未対応コマンドです: " + command);
@@ -171,7 +199,20 @@ public class ReplayCoordinator {
 		ReplayState state = sessionService.getOrCreate(roomId);
 		sessionService.heartbeat(state, clientId);
 
-		return responseService.buildResponse(state, 0, clientId);
+		return responseService.buildControlResponse(state, clientId);
+	}
+
+	public ReplayStateResponse getState(String roomId, String clientType, int vduNo, String clientId) throws Exception {
+		ReplayState state = sessionService.getState(roomId);
+		prepareCurrentDisplayState(state, clientType);
+
+		if (WsClient.CLIENT_TYPE_AVDU.equals(clientType)) {
+			return responseService.buildAvduResponse(state, clientId);
+		}
+		if (WsClient.CLIENT_TYPE_VDU.equals(clientType)) {
+			return responseService.buildVduResponse(state, vduNo, clientId);
+		}
+		return responseService.buildControlResponse(state, clientId);
 	}
 
 	/**
@@ -179,7 +220,7 @@ public class ReplayCoordinator {
 	 */
 	public ReplayStateResponse getState(String roomId, int vduNo, String clientId) throws Exception {
 		ReplayState state = sessionService.getState(roomId);
-		return responseService.buildResponse(state, vduNo, clientId);
+		return responseService.buildVduResponse(state, vduNo, clientId);
 	}
 
 	/**
@@ -196,11 +237,26 @@ public class ReplayCoordinator {
 	}
 
 	/**
-	 * 指定時間範囲に含まれる event_log を順番に適用します。
+	* WebSocket 初回接続時などに、その画面種別に必要な現在スナップショットを準備します。
+	*/
+	public void prepareCurrentDisplayState(ReplayState state, String clientType) throws Exception {
+		synchronized (state) {
+			if (WsClient.CLIENT_TYPE_AVDU.equals(clientType)) {
+				refreshAvduSnapshotAt(state, sessionService.parseDateTime(state.getCurrentReplayTime()));
+			} else if (WsClient.CLIENT_TYPE_VDU.equals(clientType)) {
+				if (needsInitialVduSnapshot(state)) {
+					refreshOpenSnapshotOnly(state);
+				}
+			}
+		}
+	}
+
+	/**
+	 * 指定時間範囲に含まれる operation_log を順番に適用します。
 	 *
 	 * <p>
 	 * ReplayEngine の1tick分で、
-	 * 前回時刻から今回時刻までのイベントを event_id 順に処理するために使用します。
+	 * 前回時刻から今回時刻までのイベントを operation_id 順に処理するために使用します。
 	 * </p>
 	 *
 	 * @param state 対象 state
@@ -210,16 +266,32 @@ public class ReplayCoordinator {
 	 */
 	public void applyReplayWindow(ReplayState state, LocalDateTime fromExclusive, LocalDateTime toInclusive)
 			throws Exception {
-		List<EventLog> events = eventLogRepository.findEventsBetween(fromExclusive, toInclusive);
+
+		log.debug("ReplayCoordinator#applyEvents start");
+
+		List<OperationLog> rows = operationLogRepository.findEventsBetween(fromExclusive, toInclusive);
 
 		// 取得したイベントを順番に1件ずつ適用する
-		for (EventLog event : events) {
-			applyReplayEvent(state, event);
+		for (OperationLog row : rows) {
+			// VDU 以外の graphic_type はここでは適用しない
+			if (row .getGraphicType() != null
+					&& row .getGraphicType().trim().length() > 0
+					&& !"VDU".equalsIgnoreCase(row .getGraphicType().trim())) {
+				continue;
+			}
+			
+			ReplayOperationEvent event = operationLogMapper.toReplayOperationEvent(row);
+			applyReplayOperation(state, event);
 		}
+
+		// AVDU はイベント適用型ではなく、時点スナップショット型で再構築する
+		refreshAvduSnapshotAt(state, toInclusive);
+
+		log.debug("ReplayCoordinator#applyEvents end");
 	}
 
 	/**
-	 * event_log の1イベントを replay として適用します。
+	 * operation_log の1イベントを replay として適用します。
 	 *
 	 * <p>
 	 * Java 側では event の適用結果だけを管理し、
@@ -230,54 +302,33 @@ public class ReplayCoordinator {
 	 * @param event 適用対象イベント
 	 * @throws Exception Cエラーなどの失敗時
 	 */
-	private void applyReplayEvent(ReplayState state, EventLog event) throws Exception {
+	private void applyReplayOperation(ReplayState state, ReplayOperationEvent event) throws Exception {
 		// C プロセスへ渡す JSON 用リクエストを組み立てる
-		CRequest request = new CRequest();
-		request.setEventType(event.getEventType());
-		request.setPageId(event.getPageId());
-		request.setControlId(event.getControlId());
-		request.setSymbolId(event.getSymbolId());
-		request.setValue(event.getValue());
+		CRequest request = operationLogMapper.toCRequest(event);
 
 		// C 側へイベントを渡して適用させる
-		CResult result = cInvoker.execute(request);
+		CResult result;
+		//CResult result = cInvoker.execute(request);
 
 		// 対象 VDU の状態を取得
 		ReplayVduState vduState = state.getOrCreateVduState(event.getVduNo());
 
-		// replay 全体として最後に適用したイベント情報を更新
-		state.setLastAppliedEventId(Long.valueOf(event.getEventId()));
-		state.setLastAppliedEventType(event.getEventType());
-		state.setLastAppliedVduNo(Integer.valueOf(event.getVduNo()));
-		state.setLastAppliedOccurredAt(formatOccurredAt(event.getOccurredAt()));
-		state.setLastControlId(event.getControlId());
-		state.setLastSymbolId(event.getSymbolId());
-		state.setLastValue(event.getValue());
+		// replay 全体と対象 VDU の last系情報を更新
+		updateLastAppliedState(state, vduState, event);
 
-		// 対象 VDU の最後の適用イベント情報も更新
-		vduState.setLastAppliedEventId(Long.valueOf(event.getEventId()));
-		vduState.setLastAppliedEventType(event.getEventType());
-		vduState.setLastAppliedVduNo(Integer.valueOf(event.getVduNo()));
-		vduState.setLastAppliedOccurredAt(formatOccurredAt(event.getOccurredAt()));
-		vduState.setLastControlId(event.getControlId());
-		vduState.setLastSymbolId(event.getSymbolId());
-		vduState.setLastValue(event.getValue());
-
-		if (result != null && result.isSuccess()) {
+		if (true) {
 			// C 適用成功
 			state.setLastApplyResult("SUCCESS");
 			vduState.setLastApplyResult("SUCCESS");
 
-			if ("OPEN".equals(event.getEventType())) {
+			if ("OPEN".equals(event.getActionType())) {
 				// OPEN の場合は Java 側でも pageId と表示URL を更新する
-				vduState.setCurrentPageId(event.getPageId());
-				vduState.setDisplayUrl(resolveDisplayUrl(event.getPageId()));
+				vduState.setLastPageId(event.getPageId());
 
-			} else if ((vduState.getCurrentPageId() == null || vduState.getCurrentPageId().length() == 0)
+			} else if ((vduState.getLastPageId() == null || vduState.getLastPageId().length() == 0)
 					&& event.getPageId() != null && event.getPageId().length() > 0) {
 				// pageId がまだ空なら補完しておく
-				vduState.setCurrentPageId(event.getPageId());
-				vduState.setDisplayUrl(resolveDisplayUrl(event.getPageId()));
+				vduState.setLastPageId(event.getPageId());
 			}
 
 		} else {
@@ -290,8 +341,13 @@ public class ReplayCoordinator {
 			state.setSpeed(1);
 			state.setLastCommand("AUTO_STOP_ON_C_ERROR");
 
-			throw new IllegalStateException("C処理失敗 eventId=" + event.getEventId() + ", message=" + message);
+			throw new IllegalStateException("C処理失敗 eventId=" + event.getOperationId() + ", message=" + message);
 		}
+	}
+
+	private void refreshAllSnapshots(ReplayState state) throws Exception {
+		refreshOpenSnapshotOnly(state);
+		refreshAvduSnapshotAt(state, sessionService.parseDateTime(state.getCurrentReplayTime()));
 	}
 
 	/**
@@ -307,16 +363,16 @@ public class ReplayCoordinator {
 	 */
 	private void refreshOpenSnapshotOnly(ReplayState state) throws Exception {
 		LocalDateTime replayTime = sessionService.parseDateTime(state.getCurrentReplayTime());
-		Map<Integer, String> pageMap = eventLogRepository.findLatestOpenPageMap(replayTime);
+		Map<Integer, String> pageMap = operationLogRepository.findLatestOpenPageMap(replayTime);
 
 		// 全体の最後の適用イベント情報をクリア
-		state.setLastAppliedEventId(null);
-		state.setLastAppliedEventType(null);
+		state.setLastAppliedOperationId(null);
+		state.setLastAppliedActionType(null);
 		state.setLastAppliedVduNo(null);
 		state.setLastApplyResult(null);
 		state.setLastAppliedOccurredAt(null);
 		state.setLastControlId(null);
-		state.setLastSymbolId(null);
+		state.setLastButtonId(null);
 		state.setLastValue(null);
 
 		// 各 VDU の「最後に適用したイベント情報」だけクリア
@@ -327,9 +383,28 @@ public class ReplayCoordinator {
 			String pageId = pageMap.get(Integer.valueOf(vduNo));
 
 			// その時点の最新 OPEN に基づいて pageId / URL を設定
-			vduState.setCurrentPageId(pageId);
-			vduState.setDisplayUrl(resolveDisplayUrl(pageId));
+			vduState.setLastPageId(pageId);
 		}
+	}
+
+	private void refreshAvduSnapshotAt(ReplayState state, LocalDateTime replayTime) throws Exception {
+		List<AlertLog> rows = alertLogRepository.findActiveAlertsAt(replayTime);
+
+		List<ReplayAvduAlert> alerts = new ArrayList<ReplayAvduAlert>();
+		for (AlertLog row : rows) {
+			alerts.add(alertLogMapper.toReplayAvduAlert(row));
+		}
+
+		state.getAvduState().setAlerts(alerts);
+	}
+
+	private boolean needsInitialVduSnapshot(ReplayState state) {
+		for (ReplayVduState vduState : state.getVduStateMap().values()) {
+			if (vduState.getLastPageId() != null && vduState.getLastPageId().trim().length() > 0) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/**
@@ -368,32 +443,25 @@ public class ReplayCoordinator {
 		return 1;
 	}
 
-	/**
-	 * pageId から iframe 表示用 URL を解決します。
-	 *
-	 * <p>
-	 * pageId がそのまま URL ならそのまま返し、
-	 * 画面IDだけなら pages/xxx.html の形式へ変換します。
-	 * </p>
-	 *
-	 * @param pageId ページID
-	 * @return 表示用 URL
-	 */
-	private String resolveDisplayUrl(String pageId) {
-		if (pageId == null || pageId.trim().length() == 0) {
-			return null;
-		}
 
-		String value = pageId.trim();
+	private void updateLastAppliedState(ReplayState state, ReplayVduState vduState, ReplayOperationEvent  operate) {
 
-		if (value.startsWith("/") || value.startsWith("http://") || value.startsWith("https://")) {
-			return value;
-		}
+		// replay 全体として最後に適用したイベント情報
+		state.setLastAppliedOperationId(operate.getOperationId());
+		state.setLastAppliedActionType(operate.getActionType());
+		state.setLastAppliedVduNo(operate.getVduNo());
+		state.setLastAppliedOccurredAt(formatOccurredAt(operate.getOccurredAt()));
+		state.setLastControlId(operate.getControlId());
+		state.setLastButtonId(operate.getButtonId());
+		state.setLastValue(operate.getValue());
 
-		if (value.endsWith(".html") || value.endsWith(".jsp")) {
-			return value;
-		}
-
-		return "pages/" + value + ".html";
+		// 対象 VDU の最後の適用イベント情報
+		vduState.setLastAppliedOperationId(Long.valueOf(operate.getOperationId()));
+		vduState.setLastAppliedActionType(operate.getActionType());
+		vduState.setLastAppliedVduNo(Integer.valueOf(operate.getVduNo()));
+		vduState.setLastAppliedOccurredAt(formatOccurredAt(operate.getOccurredAt()));
+		vduState.setLastControlId(operate.getControlId());
+		vduState.setLastSymbolId(operate.getButtonId());
+		vduState.setLastValue(operate.getValue());
 	}
 }

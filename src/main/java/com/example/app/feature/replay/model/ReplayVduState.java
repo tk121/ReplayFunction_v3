@@ -14,17 +14,14 @@ public class ReplayVduState {
     /** VDU番号 */
     private int vduNo;
 
-    /** 現在表示中の pageId */
-    private String currentPageId;
+    /** 最後に適用した pageId */
+    private String lastPageId;
 
-    /** iframe に設定する表示URL */
-    private String displayUrl;
+    /** 最後に適用した operation_id */
+    private Long lastAppliedOperationId;
 
-    /** 最後に適用した event_id */
-    private Long lastAppliedEventId;
-
-    /** 最後に適用した event_type */
-    private String lastAppliedEventType;
+    /** 最後に適用した action_type */
+    private String lastAppliedActionType;
 
     /** 最後に適用した vdu_no */
     private Integer lastAppliedVduNo;
@@ -52,36 +49,28 @@ public class ReplayVduState {
         this.vduNo = vduNo;
     }
 
-    public String getCurrentPageId() {
-        return currentPageId;
+    public String getLastPageId() {
+        return lastPageId;
     }
 
-    public void setCurrentPageId(String currentPageId) {
-        this.currentPageId = currentPageId;
+    public void setLastPageId(String lastPageId) {
+        this.lastPageId = lastPageId;
     }
 
-    public String getDisplayUrl() {
-        return displayUrl;
+    public Long getLastAppliedOperationId() {
+        return lastAppliedOperationId;
     }
 
-    public void setDisplayUrl(String displayUrl) {
-        this.displayUrl = displayUrl;
+    public void setLastAppliedOperationId(Long lastAppliedOperationId) {
+        this.lastAppliedOperationId = lastAppliedOperationId;
     }
 
-    public Long getLastAppliedEventId() {
-        return lastAppliedEventId;
+    public String getLastAppliedActionType() {
+        return lastAppliedActionType;
     }
 
-    public void setLastAppliedEventId(Long lastAppliedEventId) {
-        this.lastAppliedEventId = lastAppliedEventId;
-    }
-
-    public String getLastAppliedEventType() {
-        return lastAppliedEventType;
-    }
-
-    public void setLastAppliedEventType(String lastAppliedEventType) {
-        this.lastAppliedEventType = lastAppliedEventType;
+    public void setLastAppliedActionType(String lastAppliedActionType) {
+        this.lastAppliedActionType = lastAppliedActionType;
     }
 
     public Integer getLastAppliedVduNo() {
@@ -141,8 +130,8 @@ public class ReplayVduState {
      * </p>
      */
     public void clearEventStatusOnly() {
-        this.lastAppliedEventId = null;
-        this.lastAppliedEventType = null;
+        this.lastAppliedOperationId = null;
+        this.lastAppliedActionType = null;
         this.lastAppliedVduNo = null;
         this.lastApplyResult = null;
         this.lastAppliedOccurredAt = null;
