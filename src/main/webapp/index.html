@@ -6,50 +6,22 @@
   <style>
     body { font-family: sans-serif; margin: 16px; }
     .row { margin-bottom: 12px; }
-    .label { display: inline-block; width: 140px; }
+    .label { display: inline-block; width: 160px; }
     .btn-group button { margin-right: 8px; margin-bottom: 8px; padding: 8px 14px; }
-    .status-box {
-      margin-top: 16px;
-      padding: 12px;
-      border: 1px solid #ccc;
-      background: #f7f7f7;
-    }
-	.notice {
-	  margin-top: 8px;
-	  color: #444;
-	  font-weight: bold;
-	}
+    .status-box { margin-top: 16px; padding: 12px; border: 1px solid #ccc; background: #f7f7f7; }
+    .notice { margin-top: 8px; color: #444; font-weight: bold; }
   </style>
 </head>
 <body>
   <h1>同期再生 操作ウィンドウ</h1>
 
-  <div class="row">
-    <span class="label">操作者名:</span>
-    <input type="text" id="operatorName" maxlength="50" placeholder="PC名または操作者名">
-  </div>
-
-  <div class="row">
-    <span class="label">表示日:</span>
-    <input type="date" id="targetDate" value="2026-01-01">
-  </div>
-
-  <div class="row">
-    <span class="label">表示期間:</span>
-    <select id="periodHours">
-      <option value="4">4時間</option>
-      <option value="12">12時間</option>
-      <option value="24">24時間</option>
-    </select>
-  </div>
-
-  <div class="row">
-    <span class="label">開始時刻:</span>
-    <input type="time" id="startTime" step="60">
-  </div>
-  <div class="row" id="startTimeRule" style="color:#666; font-size: 0.9em; margin-left: 144px;">
-    4時間表示の場合は 00,04,08,12,16,20 時台を指定してください
-  </div>
+  <div class="row"><span class="label">ログインユーザー名:</span><input type="text" id="userName" maxlength="50"><button id="btnLogin">ログイン</button></div>
+  <div class="row"><span class="label">再生方式:</span><select id="replayMode"><option value="HISTORY">過去再生</option><option value="REALTIME">リアルタイム再生</option></select></div>
+  <div class="row"><span class="label">unit_no:</span><select id="unitNo"><option value="1">1</option><option value="2">2</option></select></div>
+  <div class="row"><span class="label">表示日:</span><input type="date" id="targetDate" value="2026-01-01"></div>
+  <div class="row"><span class="label">表示期間(個別):</span><select id="displayHours"><option value="4">4時間</option><option value="12">12時間</option><option value="24">24時間</option></select></div>
+  <div class="row"><span class="label">開始時刻:</span><input type="time" id="startTime" step="60"></div>
+  <div class="row" id="startTimeRule" style="color:#666; font-size: 0.9em; margin-left: 164px;">4時間表示の場合は 00,04,08,12,16,20 時台を指定してください</div>
 
   <div class="row btn-group">
     <button id="btnApply">条件反映</button>
@@ -61,6 +33,8 @@
   </div>
   
   <div class="notice">現在の操作権保持者: <span id="currentControllerName">-</span></div>
+  <div class="notice">ログインユーザー: <span id="currentUserName">-</span></div>
+  <div class="notice">ログインユーザー権限: <span id="currentUserRole">-</span></div>
   <div class="notice">操作可否: <span id="canOperateMessage">-</span></div>
 
   <hr>
@@ -77,12 +51,18 @@
     <div>現在操作者: <span id="currentOperator">-</span></div>
     <div>操作者IP: <span id="currentOperatorIp">-</span></div>
     <div>状態: <span id="playStatus">-</span></div>
-    <div>開始日時: <span id="startDateTimeLabel">-</span></div>
-    <div>表示期間: <span id="periodHoursLabel">-</span></div>
-    <div>現在位置: <span id="currentReplayTimeLabel">-</span></div>
+    <div>共有開始日時: <span id="startDateTimeLabel">-</span></div>
+    <div>共有現在位置: <span id="currentReplayTimeLabel">-</span></div>
+    <div>共有unit_no: <span id="unitNoLabel">-</span></div>
+    <div>共有再生方式: <span id="replayModeLabel">-</span></div>
     <div>速度: <span id="speedLabel">-</span></div>
     <div>最終コマンド: <span id="lastCommandLabel">-</span></div>
   </div>
+  
+  <hr>
+
+  <h2>event JSON</h2>
+  <pre id="eventJsonArea" style="background:#f7f7f7; border:1px solid #ccc; padding:12px; white-space:pre-wrap;"></pre>
 
   <script src="js/replay_ws.js"></script>
   <script src="js/replay_boot.js"></script>

@@ -5,31 +5,21 @@
   <title>VDU表示</title>
   <style>
     body { font-family: sans-serif; margin: 12px; }
-    .info-box {
-      margin-bottom: 12px;
-      padding: 10px;
-      border: 1px solid #ccc;
-      background: #f7f7f7;
-    }
+    .info-box { margin-bottom: 12px; padding: 10px; border: 1px solid #ccc; background: #f7f7f7; }
     .line { margin-bottom: 6px; }
-    iframe {
-      width: 100%;
-      height: 720px;
-      border: 1px solid #333;
-      background: #fff;
-    }
+    iframe { width: 100%; height: 720px; border: 1px solid #333; background: #fff; }
   </style>
 </head>
 <body>
   <h1 id="vduTitle">VDU</h1>
-
   <div class="info-box">
     <div class="line">現在操作者: <span id="currentOperator">-</span></div>
     <div class="line">操作者IP: <span id="currentOperatorIp">-</span></div>
     <div class="line">状態: <span id="playStatus">-</span></div>
-    <div class="line">開始日時: <span id="startDateTimeLabel">-</span></div>
-    <div class="line">表示期間: <span id="periodHoursLabel">-</span></div>
-    <div class="line">現在位置: <span id="currentReplayTimeLabel">-</span></div>
+    <div class="line">共有開始日時: <span id="startDateTimeLabel">-</span></div>
+    <div class="line">共有現在位置: <span id="currentReplayTimeLabel">-</span></div>
+    <div class="line">共有unit_no: <span id="unitNoLabel">-</span></div>
+    <div class="line">共有再生方式: <span id="replayModeLabel">-</span></div>
     <div class="line">速度: <span id="speedLabel">-</span></div>
     <div class="line">現在PageId: <span id="currentPageIdLabel">-</span></div>
     <div class="line">最終イベントID: <span id="lastAppliedEventIdLabel">-</span></div>
@@ -40,18 +30,17 @@
     <div class="line">buttonId: <span id="lastButtonIdIdLabel">-</span></div>
     <div class="line">value: <span id="lastValueLabel">-</span></div>
   </div>
-
   <iframe id="replayFrame" src="about:blank"></iframe>
-
   <script src="js/replay_ws.js"></script>
   <script>
     (function () {
       var params = new URLSearchParams(location.search);
       var vduNo = params.get("vdu") || "1";
+      var user = JSON.parse(localStorage.getItem("replay.loginUser") || "null");
       document.getElementById("vduTitle").textContent = "VDU" + vduNo;
       if (window.ReplayWs) {
-        window.ReplayWs.connect("replayMode", "VDU", vduNo);
-        window.ReplayWs.fetchCurrentState(vduNo);
+        window.ReplayWs.connect("replayMode", "VDU", vduNo, "vdu-" + vduNo, user ? user.userId : "");
+        window.ReplayWs.fetchCurrentState("VDU", vduNo, "vdu-" + vduNo);
       }
     })();
   </script>

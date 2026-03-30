@@ -2,12 +2,13 @@ package com.example.app.common.runtime;
 
 import javax.sql.DataSource;
 
-import com.example.app.feature.replay.controller.ws.WsHub;
-import com.example.app.feature.replay.engine.ReplayEngine;
-import com.example.app.feature.replay.service.ReplayControlConfig;
-import com.example.app.feature.replay.service.ReplayCoordinator;
-import com.example.app.feature.replay.service.ReplayResponseService;
-import com.example.app.feature.replay.service.ReplaySessionService;
+import com.example.app.feature.replay.common.auth.ReplayAuthService;
+import com.example.app.feature.replay.common.controller.ws.WsHub;
+import com.example.app.feature.replay.common.engine.ReplayEngine;
+import com.example.app.feature.replay.common.service.ReplayResponseService;
+import com.example.app.feature.replay.event.service.ReplayEventService;
+import com.example.app.feature.replay.graphic.service.ReplayCoordinator;
+import com.example.app.feature.replay.graphic.service.ReplaySessionService;
 
 /**
  * アプリケーション起動時に生成した共有オブジェクトを保持するクラスです。
@@ -79,9 +80,9 @@ public final class AppRuntime {
      * </p>
      */
     private static ReplayCoordinator replayCoordinator;
-    
-    /** replay 用操作権制御設定 */
-    private static ReplayControlConfig replayControlConfig;
+    private static ReplayAuthService replayAuthService;
+    private static ReplayEventService replayEventService;
+   
 
     /**
      * インスタンス化を禁止するための private コンストラクタです。
@@ -90,8 +91,7 @@ public final class AppRuntime {
      * このクラスは静的な共有領域としてのみ使用します。
      * </p>
      */
-    private AppRuntime() {
-    }
+    private AppRuntime() {}
 
     /**
      * replay 機能で利用する共有オブジェクトを初期化します。
@@ -113,16 +113,13 @@ public final class AppRuntime {
      * @param engine replay 用再生エンジン
      * @param coordinator replay 用制御サービス
      */
-    public static synchronized void initializeReplay(
-            DataSource ds,
-            WsHub wsHub,
+    public static synchronized void initializeReplay(DataSource ds, WsHub wsHub,
             ReplaySessionService sessionService,
             ReplayResponseService responseService,
             ReplayEngine engine,
             ReplayCoordinator coordinator,
-            ReplayControlConfig controlConfig) {
-
-        // 共通 DataSource を保持
+            ReplayAuthService authService,
+            ReplayEventService eventService) {
         dataSource = ds;
 
         // replay 機能の共有オブジェクトを保持
@@ -131,7 +128,8 @@ public final class AppRuntime {
         replayResponseService = responseService;
         replayEngine = engine;
         replayCoordinator = coordinator;
-        replayControlConfig = controlConfig;
+        replayAuthService = authService;
+        replayEventService = eventService;
     }
 
     /**
@@ -139,56 +137,43 @@ public final class AppRuntime {
      *
      * @return DataSource
      */
-    public static DataSource getDataSource() {
-        return dataSource;
-    }
+    public static DataSource getDataSource() { return dataSource; }
 
     /**
      * replay 機能用 WebSocket ハブを返します。
      *
      * @return WsHub
      */
-    public static WsHub getReplayWsHub() {
-        return replayWsHub;
-    }
+    public static WsHub getReplayWsHub() { return replayWsHub; }
 
     /**
      * replay 機能用状態管理サービスを返します。
      *
      * @return ReplaySessionService
      */
-    public static ReplaySessionService getReplaySessionService() {
-        return replaySessionService;
-    }
+    public static ReplaySessionService getReplaySessionService() { return replaySessionService; }
 
     /**
      * replay 機能用レスポンス生成サービスを返します。
      *
      * @return ReplayResponseService
      */
-    public static ReplayResponseService getReplayResponseService() {
-        return replayResponseService;
-    }
+    public static ReplayResponseService getReplayResponseService() { return replayResponseService; }
+
 
     /**
      * replay 機能用再生エンジンを返します。
      *
      * @return ReplayEngine
      */
-    public static ReplayEngine getReplayEngine() {
-        return replayEngine;
-    }
+    public static ReplayEngine getReplayEngine() { return replayEngine; }
 
     /**
      * replay 機能用制御サービスを返します。
      *
      * @return ReplayCoordinator
      */
-    public static ReplayCoordinator getReplayCoordinator() {
-        return replayCoordinator;
-    }
-    
-    public static ReplayControlConfig getReplayControlConfig() {
-        return replayControlConfig;
-    }
+    public static ReplayCoordinator getReplayCoordinator() { return replayCoordinator; }
+    public static ReplayAuthService getReplayAuthService() { return replayAuthService; }
+    public static ReplayEventService getReplayEventService() { return replayEventService; }
 }
