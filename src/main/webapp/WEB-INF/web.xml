@@ -8,13 +8,23 @@
 	<display-name>Archetype Created Web Application</display-name>
 
 	<context-param>
-		<param-name>replay.control.heartbeat.enabled</param-name>
-		<param-value>true</param-value>
+		<param-name>replay.plant.socket.host</param-name>
+		<param-value>127.0.0.1</param-value>
 	</context-param>
 
 	<context-param>
-		<param-name>replay.control.heartbeat.timeoutSeconds</param-name>
-		<param-value>30</param-value>
+		<param-name>replay.plant.socket.port</param-name>
+		<param-value>5000</param-value>
+	</context-param>
+
+	<context-param>
+		<param-name>replay.plant.socket.connectTimeoutMillis</param-name>
+		<param-value>3000</param-value>
+	</context-param>
+
+	<context-param>
+		<param-name>replay.plant.socket.readTimeoutMillis</param-name>
+		<param-value>3000</param-value>
 	</context-param>
 
 </web-app>

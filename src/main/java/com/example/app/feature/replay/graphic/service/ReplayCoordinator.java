@@ -14,8 +14,6 @@ import com.example.app.feature.replay.common.controller.ws.WsHub;
 import com.example.app.feature.replay.common.model.ReplayMode;
 import com.example.app.feature.replay.common.model.ReplayState;
 import com.example.app.feature.replay.common.service.ReplayResponseService;
-import com.example.app.feature.replay.graphic.c.CInvoker;
-import com.example.app.feature.replay.graphic.c.CRequest;
 import com.example.app.feature.replay.graphic.dto.ReplayControlRequest;
 import com.example.app.feature.replay.graphic.dto.ReplayStateResponse;
 import com.example.app.feature.replay.graphic.entity.AlertLog;
@@ -70,10 +68,10 @@ public class ReplayCoordinator {
 	
 	private final PlantDataLogRepository plantDataLogRepository;
 	
-	private final PlantDataProcessService plantDataProcessService;
+//	private final PlantDataProcessService plantDataProcessService;
 
-	/** C プロセス呼び出しインターフェース */
-	private final CInvoker cInvoker;
+	 /** 外部 C プロセス連携の窓口 */
+    private final ReplayExternalProcessService externalProcessService;
 
 	public ReplayCoordinator(
 			ReplaySessionService sessionService,
@@ -84,8 +82,7 @@ public class ReplayCoordinator {
 			PlantDataLogRepository plantDataLogRepository,
 			OperationLogMapper operationLogMapper,
 			AlertLogMapper alertLogMapper,
-			PlantDataProcessService plantDataProcessService,
-			CInvoker cInvoker) {
+			ReplayExternalProcessService externalProcessService) {
 		this.sessionService = sessionService;
 		this.responseService = responseService;
 		this.wsHub = wsHub;
@@ -94,8 +91,7 @@ public class ReplayCoordinator {
 		this.plantDataLogRepository = plantDataLogRepository;
 		this.operationLogMapper = operationLogMapper;
 		this.alertLogMapper = alertLogMapper;
-		this.plantDataProcessService = plantDataProcessService;
-		this.cInvoker = cInvoker;
+		this.externalProcessService = externalProcessService;
 	}
 
 	/**
@@ -229,13 +225,7 @@ public class ReplayCoordinator {
 	 * @throws Exception Cエラーなどの失敗時
 	 */
 	private void applyReplayOperation(ReplayState state, ReplayOperationEvent event) throws Exception {
-		// C プロセスへ渡す JSON 用リクエストを組み立てる
-		CRequest request = operationLogMapper.toCRequest(event);
-        try {
-            cInvoker.execute(request);
-        } catch (Exception e) {
-            log.warn("C invoker failed. Continue with Java side snapshot only. {}", e.getMessage());
-        }
+
 		ReplayVduState vduState = state.getOrCreateVduState(event.getVduNo());
 		updateLastAppliedState(state, vduState, event);
 			state.setLastApplyResult("SUCCESS");
@@ -258,8 +248,11 @@ public class ReplayCoordinator {
         List<PlantDataLog> plantRows =
                 plantDataLogRepository.findByUnitNoAndOccurredAtRange(state.getUnitNo(), fromExclusive, toInclusive);
 
-        for (PlantDataLog plantRow : plantRows) {
-            plantDataProcessService.execute(plantRow);
+        try {
+            externalProcessService.submitPlantData(plantRows);
+        } catch (Exception e) {
+            // 必要に応じてログ
+            throw new RuntimeException("Failed to submit plant data to external process", e);
         }
     }
 

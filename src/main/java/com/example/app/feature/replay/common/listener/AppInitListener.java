@@ -19,8 +19,9 @@ import com.example.app.feature.replay.event.repository.AlertEventRepository;
 import com.example.app.feature.replay.event.repository.OperationEventRepository;
 import com.example.app.feature.replay.event.service.ReplayEventService;
 import com.example.app.feature.replay.graphic.c.CInvoker;
-import com.example.app.feature.replay.graphic.c.ProcessBuilderCInvoker;
-import com.example.app.feature.replay.graphic.c.SocketCInvoker;
+import com.example.app.feature.replay.graphic.c.LengthPrefixedSocketCInvoker;
+import com.example.app.feature.replay.graphic.c.plant.PlantAcceptedResponse;
+import com.example.app.feature.replay.graphic.c.plant.PlantAsyncRequest;
 import com.example.app.feature.replay.graphic.mapper.AlertLogMapper;
 import com.example.app.feature.replay.graphic.mapper.OperationLogMapper;
 import com.example.app.feature.replay.graphic.repository.AlertLogRepository;
@@ -28,67 +29,51 @@ import com.example.app.feature.replay.graphic.repository.OperationLogRepository;
 import com.example.app.feature.replay.graphic.repository.PlantDataLogRepository;
 import com.example.app.feature.replay.graphic.service.PlantDataProcessService;
 import com.example.app.feature.replay.graphic.service.ReplayCoordinator;
+import com.example.app.feature.replay.graphic.service.ReplayExternalProcessService;
 import com.example.app.feature.replay.graphic.service.ReplaySessionService;
 
 /**
  * アプリ起動・終了時の初期化処理を行う Listener です。
- *
- * <p>
- * replay 機能に必要な共有オブジェクトを生成し、
- * AppRuntime へ登録します。
- * また、ReplayEngine の起動と停止も担当します。
- * </p>
  */
 @WebListener
 public class AppInitListener implements ServletContextListener {
-	
-	private static final Logger log = LoggerFactory.getLogger(AppInitListener.class);
 
-    /**
-     * アプリケーション起動時に呼ばれます。
-     *
-     * <p>
-     * DataSource、Service、Repository、WebSocket ハブ、
-     * CInvoker、ReplayEngine などを生成し、
-     * 最後に ReplayEngine を起動します。
-     * </p>
-     *
-     * @param sce ServletContextEvent
-     */
+    private static final Logger log = LoggerFactory.getLogger(AppInitListener.class);
+
     @Override
     public void contextInitialized(ServletContextEvent sce) {
         try {
-        	
-        		log.info("contextInitialized start");
-        	
+            log.info("contextInitialized start");
+
             ServletContext application = sce.getServletContext();
 
             // JNDI から DataSource を取得
             String jndi = getInitParam(application, "replay.jndi", "java:comp/env/jdbc/mydb");
             DataSource ds = DataSourceProvider.lookup(jndi);
-            
+
             WsHub wsHub = new WsHub();
             ReplaySessionService sessionService = new ReplaySessionService();
             ReplayResponseService responseService = new ReplayResponseService(sessionService);
             ReplayAuthService authService = new ReplayAuthService();
+
             OperationLogRepository operationLogRepository = new OperationLogRepository(ds);
             AlertLogRepository alertLogRepository = new AlertLogRepository(ds);
             PlantDataLogRepository plantDataLogRepository = new PlantDataLogRepository(ds);
+
             OperationLogMapper operationMapper = new OperationLogMapper();
             AlertLogMapper alertLogMapper = new AlertLogMapper();
 
-            // C 呼び出し方式を設定値から決定
-            CInvoker cInvoker = createCInvoker(application);
-            
-            String plantCommand = getInitParam(application,
-                    "replay.plant.process.command",
-                    "/opt/myapp/bin/plant_replay_client");
-            long plantTimeoutMillis = Long.parseLong(getInitParam(application,
-                    "replay.plant.process.timeoutMillis",
-                    "3000"));
+            // Plant 用 非同期 C サーバ invoker
+            CInvoker<PlantAsyncRequest, PlantAcceptedResponse> plantCInvoker =
+                    createPlantAsyncSocketInvoker(application);
 
+            // Plant 送信サービス
             PlantDataProcessService plantDataProcessService =
-                    new PlantDataProcessService(plantCommand, plantTimeoutMillis);
+                    new PlantDataProcessService(plantCInvoker);
+
+            // 外部 C プロセス連携の集約窓口
+            ReplayExternalProcessService externalProcessService =
+                    new ReplayExternalProcessService(plantDataProcessService);
 
             ReplayCoordinator coordinator = new ReplayCoordinator(
                     sessionService,
@@ -99,33 +84,38 @@ public class AppInitListener implements ServletContextListener {
                     plantDataLogRepository,
                     operationMapper,
                     alertLogMapper,
-                    plantDataProcessService,
-                    cInvoker);
+                    externalProcessService);
 
-            ReplayEngine engine = new ReplayEngine(sessionService, coordinator, responseService, wsHub);
+            ReplayEngine engine = new ReplayEngine(
+                    sessionService,
+                    coordinator,
+                    responseService,
+                    wsHub);
+
             ReplayEventService eventService = new ReplayEventService(
                     sessionService,
                     new OperationEventRepository(ds),
                     new AlertEventRepository(ds));
 
-            AppRuntime.initializeReplay(ds, wsHub, sessionService, responseService, engine, coordinator, authService, eventService);
+            AppRuntime.initializeReplay(
+                    ds,
+                    wsHub,
+                    sessionService,
+                    responseService,
+                    engine,
+                    coordinator,
+                    authService,
+                    eventService);
+
             engine.start();
             log.info("contextInitialized end");
+
         } catch (Exception e) {
-        		log.error("AppInitListener failed", e);
+            log.error("AppInitListener failed", e);
             throw new RuntimeException("AppInitListener failed: " + e.getMessage(), e);
         }
     }
 
-    /**
-     * アプリケーション終了時に呼ばれます。
-     *
-     * <p>
-     * 起動中の ReplayEngine を停止します。
-     * </p>
-     *
-     * @param sce ServletContextEvent
-     */
     @Override
     public void contextDestroyed(ServletContextEvent sce) {
         try {
@@ -138,41 +128,28 @@ public class AppInitListener implements ServletContextListener {
     }
 
     /**
-     * CInvoker 実装を設定値から生成します。
-     *
-     * <p>
-     * replay.c.mode が socket なら SocketCInvoker、
-     * それ以外は ProcessBuilderCInvoker を使用します。
-     * </p>
-     *
-     * @param application ServletContext
-     * @return CInvoker 実装
+     * Plant 用 非同期 C サーバ invoker を生成します。
      */
-    private CInvoker createCInvoker(ServletContext application) {
-        String mode = getInitParam(application, "replay.c.mode", "process");
+    private CInvoker<PlantAsyncRequest, PlantAcceptedResponse> createPlantAsyncSocketInvoker(
+            ServletContext application) {
 
-        if ("socket".equalsIgnoreCase(mode)) {
-            String host = getInitParam(application, "replay.c.socket.host", "127.0.0.1");
-            int port = Integer.parseInt(getInitParam(application, "replay.c.socket.port", "5001"));
-            return new SocketCInvoker(host, port);
-        }
+        String host = getInitParam(application, "replay.plant.socket.host", "127.0.0.1");
+        int port = Integer.parseInt(getInitParam(application, "replay.plant.socket.port", "5000"));
+        int connectTimeoutMillis = Integer.parseInt(getInitParam(
+                application, "replay.plant.socket.connectTimeoutMillis", "3000"));
+        int readTimeoutMillis = Integer.parseInt(getInitParam(
+                application, "replay.plant.socket.readTimeoutMillis", "3000"));
 
-        String command = getInitParam(application, "replay.c.process.command", "/opt/myapp/bin/replay_c_client");
-        long timeoutMillis = Long.parseLong(getInitParam(application, "replay.c.process.timeoutMillis", "3000"));
-        return new ProcessBuilderCInvoker(command, timeoutMillis);
+        return new LengthPrefixedSocketCInvoker<PlantAsyncRequest, PlantAcceptedResponse>(
+                host,
+                port,
+                connectTimeoutMillis,
+                readTimeoutMillis,
+                PlantAcceptedResponse.class);
     }
 
     /**
      * web.xml などの init-param を取得します。
-     *
-     * <p>
-     * 未設定の場合は既定値を返します。
-     * </p>
-     *
-     * @param application ServletContext
-     * @param key パラメータ名
-     * @param defaultValue 既定値
-     * @return 設定値または既定値
      */
     private String getInitParam(ServletContext application, String key, String defaultValue) {
         String value = application.getInitParameter(key);

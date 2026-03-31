@@ -4,18 +4,21 @@ package com.example.app.feature.replay.graphic.c;
  * C プロセス呼び出しインターフェースです。
  *
  * <p>
- * 実際の呼び出し方式が ProcessBuilder でも Socket でも、
- * Java 側からはこのインターフェースで統一的に扱います。
+ * C プロセスごとに request/response 型を分けられるように、
+ * ジェネリクスで表現します。
  * </p>
+ *
+ * @param <REQ> 送信リクエスト型
+ * @param <RES> 受信レスポンス型
  */
-public interface CInvoker {
+public interface CInvoker<REQ, RES> {
 
     /**
-     * C プロセスへイベントを渡して処理を実行します。
+     * C プロセスへ依頼を送信して応答を受け取ります。
      *
-     * @param request C へ渡す入力情報
-     * @return C 側の処理結果
+     * @param request 送信リクエスト
+     * @return C 側のレスポンス
      * @throws Exception 呼び出し失敗時
      */
-    CResult execute(CRequest request) throws Exception;
+    RES execute(REQ request) throws Exception;
 }
