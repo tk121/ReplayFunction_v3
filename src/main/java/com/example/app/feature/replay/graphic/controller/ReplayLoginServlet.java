@@ -16,7 +16,7 @@ import com.example.app.feature.replay.graphic.dto.ErrorResponse;
 import com.example.app.feature.replay.graphic.dto.ReplayLoginRequest;
 import com.example.app.feature.replay.graphic.dto.ReplayLoginResponse;
 
-@WebServlet("/ReplayFunction_v3/replay/login")
+@WebServlet("/ReplayFunction/replay/login")
 public class ReplayLoginServlet extends HttpServlet {
     private static final long serialVersionUID = 1L;
 

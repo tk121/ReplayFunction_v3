@@ -27,7 +27,7 @@ import com.example.app.feature.replay.graphic.dto.ReplayStateResponse;
  * ReplayCoordinator に処理を委譲します。
  * </p>
  */
-@WebServlet("/ReplayFunction_v3/replay/control")
+@WebServlet("/ReplayFunction/replay/control")
 public class ReplayControlServlet extends HttpServlet {
 	
 	private static final Logger log = LoggerFactory.getLogger(ReplayControlServlet.class);

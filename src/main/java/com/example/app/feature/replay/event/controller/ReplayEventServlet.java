@@ -16,7 +16,7 @@ import com.example.app.common.runtime.AppRuntime;
 import com.example.app.feature.replay.event.dto.ReplayEventResponse;
 import com.example.app.feature.replay.graphic.dto.ErrorResponse;
 
-@WebServlet("/ReplayFunction_v3/replay/event/*")
+@WebServlet("/ReplayFunction/replay/event/*")
 public class ReplayEventServlet extends HttpServlet {
     private static final long serialVersionUID = 1L;
     
