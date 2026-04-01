@@ -35,7 +35,7 @@
       window.REPLAY_SCREEN_TYPE = "AVDU";
       var user = JSON.parse(localStorage.getItem("replay.loginUser") || "null");
       if (window.ReplayWs) {
-        window.ReplayWs.connect("replayMode", "AVDU", "", "avdu", user ? user.userId : "");
+        window.ReplayWs.connect("replayMode", "AVDU", "", "avdu");
         window.ReplayWs.fetchCurrentState("AVDU", 0, "avdu");
       }
     })();

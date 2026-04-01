@@ -7,7 +7,7 @@ import javax.websocket.Session;
 
 import com.example.app.common.json.JsonUtil;
 import com.example.app.common.runtime.AppRuntime;
-import com.example.app.feature.replay.common.auth.LoginUser;
+import com.example.app.feature.auth.model.LoginUser;
 import com.example.app.feature.replay.common.model.ReplayState;
 import com.example.app.feature.replay.common.service.ReplayResponseService;
 import com.example.app.feature.replay.graphic.dto.ReplayStateResponse;
@@ -36,8 +36,14 @@ public class WsHub {
 	 */
 	private final Map<String, WsClient> clientMap = new ConcurrentHashMap<String, WsClient>();
 
-    public void register(WsClient client) { clientMap.put(client.getSession().getId(), client); }
-    public void unregister(Session session) { if (session != null) clientMap.remove(session.getId()); }
+	public void register(WsClient client) {
+		clientMap.put(client.getSession().getId(), client);
+	}
+
+	public void unregister(Session session) {
+		if (session != null)
+			clientMap.remove(session.getId());
+	}
 
 	/**
 	 * 指定クライアントへ現在状態を1回送信します。
@@ -51,9 +57,10 @@ public class WsHub {
 	 * @param responseService レスポンス生成サービス
 	 * @throws Exception 送信失敗時
 	 */
-    public void sendCurrentState(WsClient client, ReplayState state, ReplayResponseService responseService) throws Exception {
+	public void sendCurrentState(WsClient client, ReplayState state, ReplayResponseService responseService)
+			throws Exception {
 		ReplayStateResponse response = buildResponseForClient(client, state, responseService);
-        client.getSession().getBasicRemote().sendText(JsonUtil.writeValueAsString(response));
+		client.getSession().getBasicRemote().sendText(JsonUtil.writeValueAsString(response));
 	}
 
 	/**
@@ -69,11 +76,13 @@ public class WsHub {
 	 */
 	public void broadcast(ReplayState state, ReplayResponseService responseService) throws Exception {
 		for (WsClient client : clientMap.values()) {
-            if (client == null || client.getSession() == null || !client.getSession().isOpen()) continue;
-            if (!safeEquals(state.getRoomId(), client.getRoomId())) continue;
+			if (client == null || client.getSession() == null || !client.getSession().isOpen())
+				continue;
+			if (!safeEquals(state.getRoomId(), client.getRoomId()))
+				continue;
 			try {
 				ReplayStateResponse response = buildResponseForClient(client, state, responseService);
-                client.getSession().getBasicRemote().sendText(JsonUtil.writeValueAsString(response));
+				client.getSession().getBasicRemote().sendText(JsonUtil.writeValueAsString(response));
 			} catch (Exception e) {
 				// 必要ならログ出力
 			}
@@ -83,15 +92,20 @@ public class WsHub {
 	private ReplayStateResponse buildResponseForClient(
 			WsClient client,
 			ReplayState state,
-			ReplayResponseService responseService) {
-        LoginUser loginUser = client.getUserId() == null || client.getUserId().length() == 0 ? null : AppRuntime.getReplayAuthService().login(client.getUserId());
+			ReplayResponseService responseService) throws Exception {
+
+		LoginUser loginUser = null;
+		if (client.getUserId() != null && client.getUserId().length() > 0) {
+			loginUser = AppRuntime.getReplayAuthService().findLoginUserByUserId(client.getUserId());
+		}
+
 		if (client.isAvdu()) {
-            return responseService.buildAvduResponse(state, loginUser);
+			return responseService.buildAvduResponse(state, loginUser);
 		}
 		if (client.isVdu()) {
-            return responseService.buildVduResponse(state, client.getVduNo(), loginUser);
+			return responseService.buildVduResponse(state, client.getVduNo(), loginUser);
 		}
-        return responseService.buildControlResponse(state, loginUser);
+		return responseService.buildControlResponse(state, loginUser);
 	}
 
 	/**

@@ -9,12 +9,13 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.example.app.common.runtime.AppRuntime;
 import com.example.app.feature.replay.common.controller.ws.WsHub;
 import com.example.app.feature.replay.common.model.ReplayMode;
 import com.example.app.feature.replay.common.model.ReplayState;
 import com.example.app.feature.replay.common.service.ReplayResponseService;
+import com.example.app.feature.replay.common.service.ReplaySessionService;
 import com.example.app.feature.replay.graphic.service.ReplayCoordinator;
-import com.example.app.feature.replay.graphic.service.ReplaySessionService;
 
 /**
  * replay の時間進行を担当するエンジンです。
@@ -22,118 +23,133 @@ import com.example.app.feature.replay.graphic.service.ReplaySessionService;
  * <p>
  * 一定周期で tick を実行し、
  * 再生中の room について currentReplayTime を進め、
- * その時間範囲の event_log を ReplayCoordinator 経由で適用します。
+ * その時間範囲のイベントを ReplayCoordinator 経由で適用します。
+ * </p>
+ *
+ * <p>
+ * REALTIME では既存の replay 時刻進行と連動して、
+ * event 集計済みテーブルの差分も共有状態へ取り込みます。
  * </p>
  */
 public class ReplayEngine {
 
-	private static final Logger log = LoggerFactory.getLogger(ReplayEngine.class);
+    private static final Logger log = LoggerFactory.getLogger(ReplayEngine.class);
 
-	/** room ごとの state 管理サービス */
-	private final ReplaySessionService sessionService;
+    /** room ごとの state 管理サービス */
+    private final ReplaySessionService sessionService;
 
-	/** replay 制御サービス */
-	private final ReplayCoordinator replayCoordinator;
+    /** replay 制御サービス */
+    private final ReplayCoordinator replayCoordinator;
 
-	/** state からレスポンスを組み立てるサービス */
-	private final ReplayResponseService responseService;
+    /** state からレスポンスを組み立てるサービス */
+    private final ReplayResponseService responseService;
 
-	/** WebSocket 配信ハブ */
-	private final WsHub wsHub;
+    /** WebSocket 配信ハブ */
+    private final WsHub wsHub;
 
-	/** 1秒周期で replay を進めるスケジューラ */
-	private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    /** 1秒周期で replay を進めるスケジューラ */
+    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
-	public ReplayEngine(
-			ReplaySessionService sessionService,
-			ReplayCoordinator replayCoordinator,
-			ReplayResponseService responseService,
-			WsHub wsHub) {
+    public ReplayEngine(
+            ReplaySessionService sessionService,
+            ReplayCoordinator replayCoordinator,
+            ReplayResponseService responseService,
+            WsHub wsHub) {
 
-		this.sessionService = sessionService;
-		this.replayCoordinator = replayCoordinator;
-		this.responseService = responseService;
-		this.wsHub = wsHub;
-	}
+        this.sessionService = sessionService;
+        this.replayCoordinator = replayCoordinator;
+        this.responseService = responseService;
+        this.wsHub = wsHub;
+    }
 
-	/**
-	 * replay エンジンを起動します。
-	 *
-	 * <p>
-	 * 1秒ごとに tick を実行します。
-	 * </p>
-	 */
-	public void start() {
+    /**
+     * replay エンジンを起動します。
+     */
+    public void start() {
+        log.info("リプレイ処理を開始します");
 
-		log.info("リプレイ処理を開始します");
-		
-		scheduler.scheduleAtFixedRate(new Runnable() {
-			@Override
-			public void run() {
-				tick();
-			}
-		}, 1L, 1L, TimeUnit.SECONDS);
-	}
+        scheduler.scheduleAtFixedRate(new Runnable() {
+            @Override
+            public void run() {
+                tick();
+            }
+        }, 1L, 1L, TimeUnit.SECONDS);
+    }
 
-	/**
-	 * replay エンジンを停止します。
-	 */
-	public void shutdown() {
-		scheduler.shutdownNow();
-	}
+    /**
+     * replay エンジンを停止します。
+     */
+    public void shutdown() {
+        scheduler.shutdownNow();
+    }
 
-	/**
-	 * 1回分の replay 進行処理を行います。
-	 *
-	 * <p>
-	 * 各 room の状態を見て、再生中なら時間を進め、
-	 * その区間のイベントを適用します。
-	 * </p>
-	 */
-	private void tick() {
-		Collection<ReplayState> states = sessionService.getAllStates();
+    /**
+     * 1回分の replay 進行処理を行います。
+     */
+    private void tick() {
+        Collection<ReplayState> states = sessionService.getAllStates();
 
-		for (ReplayState state : states) {
-			try {
-				synchronized (state) {
+        for (ReplayState state : states) {
+            try {
+                synchronized (state) {
                     if (state.getReplayMode() == ReplayMode.REALTIME) {
                         state.setPlayStatus(ReplayState.STATUS_PLAYING);
                     }
-					if (!ReplayState.STATUS_PLAYING.equals(state.getPlayStatus())) {
-						continue;
-					}
 
-					// 現在時刻と末尾時刻を求める
-					LocalDateTime current = state.getCurrentReplayTime();
+                    if (!ReplayState.STATUS_PLAYING.equals(state.getPlayStatus())) {
+                        continue;
+                    }
+
+                    LocalDateTime current = state.getCurrentReplayTime();
                     LocalDateTime next;
+
                     if (state.getReplayMode() == ReplayMode.REALTIME) {
                         next = LocalDateTime.now().withNano(0);
+
+                        if (current == null) {
+                            state.setCurrentReplayTime(next);
+                            continue;
+                        }
+
                         if (!next.isAfter(current)) {
                             continue;
-					}
+                        }
                     } else {
+                        if (current == null) {
+                            current = state.getStartDateTime();
+                            state.setCurrentReplayTime(current);
+                        }
                         next = current.plusSeconds(state.getSpeed());
                     }
-					replayCoordinator.applyReplayWindow(state, current, next);
-					state.setCurrentReplayTime(next);
-				}
-				wsHub.broadcast(state, responseService);
-			} catch (Exception e) {
-				log.error("処理中にエラーが発生しました", e);
-				try {
-					// 例外時は安全側で停止させる
-					synchronized (state) {
-						state.setPlayStatus(ReplayState.STATUS_STOPPED);
-						state.setSpeed(1);
-						state.setLastCommand("AUTO_STOP_ON_ENGINE_ERROR");
-					}
-					wsHub.broadcast(state, responseService);
-				} catch (Exception ignore) {
 
-					// 必要ならログ出力
-					System.out.println("ReplayEngine tick stop error => " + ignore.getMessage());
-				}
-			}
-		}
-	}
+                    // 既存 replay 処理
+                    replayCoordinator.applyReplayWindow(state, current, next);
+
+                    // 再生時刻を更新
+                    state.setCurrentReplayTime(next);
+
+                    // REALTIME かつ条件反映済みなら event 集計済み差分を取り込む
+                    if (state.getReplayMode() == ReplayMode.REALTIME && state.isConditionApplied()) {
+                        AppRuntime.getReplayEventService().loadRealtimeAppendAndMerge(state);
+                    }
+                }
+
+                wsHub.broadcast(state, responseService);
+
+            } catch (Exception e) {
+                log.error("処理中にエラーが発生しました", e);
+
+                try {
+                    synchronized (state) {
+                        state.setPlayStatus(ReplayState.STATUS_STOPPED);
+                        state.setSpeed(1);
+                        state.setLastCommand("AUTO_STOP_ON_ENGINE_ERROR");
+                    }
+                    wsHub.broadcast(state, responseService);
+                } catch (Exception ignore) {
+                    System.out.println("ReplayEngine tick stop error => " + ignore.getMessage());
+                }
+            }
+        }
+    }
 }

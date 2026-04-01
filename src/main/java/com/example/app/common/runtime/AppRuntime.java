@@ -2,13 +2,13 @@ package com.example.app.common.runtime;
 
 import javax.sql.DataSource;
 
-import com.example.app.feature.replay.common.auth.ReplayAuthService;
+import com.example.app.feature.auth.service.AuthService;
 import com.example.app.feature.replay.common.controller.ws.WsHub;
 import com.example.app.feature.replay.common.engine.ReplayEngine;
 import com.example.app.feature.replay.common.service.ReplayResponseService;
+import com.example.app.feature.replay.common.service.ReplaySessionService;
 import com.example.app.feature.replay.event.service.ReplayEventService;
 import com.example.app.feature.replay.graphic.service.ReplayCoordinator;
-import com.example.app.feature.replay.graphic.service.ReplaySessionService;
 
 /**
  * アプリケーション起動時に生成した共有オブジェクトを保持するクラスです。
@@ -80,7 +80,7 @@ public final class AppRuntime {
      * </p>
      */
     private static ReplayCoordinator replayCoordinator;
-    private static ReplayAuthService replayAuthService;
+    private static AuthService replayAuthService;
     private static ReplayEventService replayEventService;
    
 
@@ -118,7 +118,7 @@ public final class AppRuntime {
             ReplayResponseService responseService,
             ReplayEngine engine,
             ReplayCoordinator coordinator,
-            ReplayAuthService authService,
+            AuthService authService,
             ReplayEventService eventService) {
         dataSource = ds;
 
@@ -174,6 +174,6 @@ public final class AppRuntime {
      * @return ReplayCoordinator
      */
     public static ReplayCoordinator getReplayCoordinator() { return replayCoordinator; }
-    public static ReplayAuthService getReplayAuthService() { return replayAuthService; }
+    public static AuthService getReplayAuthService() { return replayAuthService; }
     public static ReplayEventService getReplayEventService() { return replayEventService; }
 }

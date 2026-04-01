@@ -5,7 +5,7 @@ create table if not exists operation_log(
     , unit_no integer not null
     , graphic_type text not null
     , vdu_no integer
-    , occurred_at timestamptz not null
+    , occurred_at timestamp not null
     , action_type text not null
     , page_id text
     , control_id text

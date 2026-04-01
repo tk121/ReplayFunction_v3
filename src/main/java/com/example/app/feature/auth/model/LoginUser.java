@@ -1,4 +1,4 @@
-package com.example.app.feature.replay.common.auth;
+package com.example.app.feature.auth.model;
 
 public class LoginUser {
     private final String userId;

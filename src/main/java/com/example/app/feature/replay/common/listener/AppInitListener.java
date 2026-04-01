@@ -11,12 +11,14 @@ import org.slf4j.LoggerFactory;
 
 import com.example.app.common.datasource.DataSourceProvider;
 import com.example.app.common.runtime.AppRuntime;
-import com.example.app.feature.replay.common.auth.ReplayAuthService;
+import com.example.app.feature.auth.repository.UserRepository;
+import com.example.app.feature.auth.service.AuthService;
 import com.example.app.feature.replay.common.controller.ws.WsHub;
 import com.example.app.feature.replay.common.engine.ReplayEngine;
 import com.example.app.feature.replay.common.service.ReplayResponseService;
-import com.example.app.feature.replay.event.repository.AlertEventRepository;
-import com.example.app.feature.replay.event.repository.OperationEventRepository;
+import com.example.app.feature.replay.common.service.ReplaySessionService;
+import com.example.app.feature.replay.event.repository.AlertCountPerMinuteRepository;
+import com.example.app.feature.replay.event.repository.VduOperationCountPerMinuteRepository;
 import com.example.app.feature.replay.event.service.ReplayEventService;
 import com.example.app.feature.replay.graphic.c.CInvoker;
 import com.example.app.feature.replay.graphic.c.LengthPrefixedSocketCInvoker;
@@ -30,7 +32,6 @@ import com.example.app.feature.replay.graphic.repository.PlantDataLogRepository;
 import com.example.app.feature.replay.graphic.service.PlantDataProcessService;
 import com.example.app.feature.replay.graphic.service.ReplayCoordinator;
 import com.example.app.feature.replay.graphic.service.ReplayExternalProcessService;
-import com.example.app.feature.replay.graphic.service.ReplaySessionService;
 
 /**
  * アプリ起動・終了時の初期化処理を行う Listener です。
@@ -54,7 +55,8 @@ public class AppInitListener implements ServletContextListener {
             WsHub wsHub = new WsHub();
             ReplaySessionService sessionService = new ReplaySessionService();
             ReplayResponseService responseService = new ReplayResponseService(sessionService);
-            ReplayAuthService authService = new ReplayAuthService();
+            UserRepository userRepository = new UserRepository(ds);
+            AuthService authService = new AuthService(userRepository);
 
             OperationLogRepository operationLogRepository = new OperationLogRepository(ds);
             AlertLogRepository alertLogRepository = new AlertLogRepository(ds);
@@ -75,6 +77,12 @@ public class AppInitListener implements ServletContextListener {
             ReplayExternalProcessService externalProcessService =
                     new ReplayExternalProcessService(plantDataProcessService);
 
+            // event 集計済みテーブル用サービス
+            ReplayEventService eventService = new ReplayEventService(
+                    sessionService,
+                    new VduOperationCountPerMinuteRepository(ds),
+                    new AlertCountPerMinuteRepository(ds));
+
             ReplayCoordinator coordinator = new ReplayCoordinator(
                     sessionService,
                     responseService,
@@ -84,18 +92,14 @@ public class AppInitListener implements ServletContextListener {
                     plantDataLogRepository,
                     operationMapper,
                     alertLogMapper,
-                    externalProcessService);
+                    externalProcessService,
+                    eventService);
 
             ReplayEngine engine = new ReplayEngine(
                     sessionService,
                     coordinator,
                     responseService,
                     wsHub);
-
-            ReplayEventService eventService = new ReplayEventService(
-                    sessionService,
-                    new OperationEventRepository(ds),
-                    new AlertEventRepository(ds));
 
             AppRuntime.initializeReplay(
                     ds,

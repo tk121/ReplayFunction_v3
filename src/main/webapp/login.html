@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>ログイン</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      background: #f5f5f5;
+    }
+    .login-box {
+      width: 360px;
+      margin: 80px auto;
+      background: #fff;
+      border: 1px solid #ccc;
+      padding: 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    h1 {
+      margin-top: 0;
+      font-size: 24px;
+    }
+    .row {
+      margin-bottom: 16px;
+    }
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: bold;
+    }
+    input[type="text"],
+    input[type="password"] {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px;
+      font-size: 14px;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .error {
+      margin-top: 12px;
+      color: #c00;
+      min-height: 1.2em;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-box">
+    <h1>ログイン</h1>
+
+    <div class="row">
+      <label for="userName">ユーザー名</label>
+      <input type="text" id="userName" maxlength="100">
+    </div>
+
+    <div class="row">
+      <label for="password">パスワード</label>
+      <input type="password" id="password" maxlength="255">
+    </div>
+
+    <div class="row">
+      <button id="btnLogin">ログイン</button>
+    </div>
+
+    <div id="errorMessage" class="error"></div>
+  </div>
+
+  <script>
+    (function () {
+      var userName = document.getElementById("userName");
+      var password = document.getElementById("password");
+      var btnLogin = document.getElementById("btnLogin");
+      var errorMessage = document.getElementById("errorMessage");
+
+      function setError(message) {
+        errorMessage.textContent = message || "";
+      }
+
+      function doLogin() {
+        setError("");
+
+        fetch("ReplayFunction/replay/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userName: userName.value,
+            password: password.value
+          })
+        })
+        .then(function (res) {
+          if (!res.ok) {
+            return res.json().then(function (data) {
+              throw new Error(data.message || "ログインに失敗しました");
+            });
+          }
+          return res.json();
+        })
+        .then(function (data) {
+          localStorage.setItem("replay.loginUser", JSON.stringify(data));
+          location.href = "index.html";
+        })
+        .catch(function (e) {
+          setError(e.message);
+        });
+      }
+
+      btnLogin.addEventListener("click", doLogin);
+
+      password.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") {
+          doLogin();
+        }
+      });
+
+      userName.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") {
+          doLogin();
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

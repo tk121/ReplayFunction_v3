@@ -39,21 +39,20 @@ window.ReplayWs = (function () {
       }
     }
 
-  function connect(roomId, clientType, vduNo, clientId, userId) {
+  function connect(roomId, clientType, vduNo, clientId) {
     var protocol = location.protocol === "https:" ? "wss:" : "ws:";
     var basePath = location.pathname.substring(0, location.pathname.lastIndexOf("/"));
     var url = protocol + "//" + location.host + basePath + "/ws/replay"
       + "?roomId=" + encodeURIComponent(roomId || "replayMode")
       + "&clientType=" + encodeURIComponent(clientType || "")
       + "&vduNo=" + encodeURIComponent(vduNo || "")
-      + "&clientId=" + encodeURIComponent(clientId || "")
-      + "&userId=" + encodeURIComponent(userId || "");
+      + "&clientId=" + encodeURIComponent(clientId || "");
     ws = new WebSocket(url);
     ws.onmessage = function (event) { renderState(JSON.parse(event.data)); };
   }
 
   function fetchCurrentState(clientType, vduNo, clientId) {
-    fetch("ReplayFunction_v3/replay/state?roomId=replayMode"
+    fetch("ReplayFunction/replay/state?roomId=replayMode"
       + "&clientType=" + encodeURIComponent(clientType || "CONTROL")
       + "&vduNo=" + encodeURIComponent(vduNo || 0)
       + "&clientId=" + encodeURIComponent(clientId || ""), { method: "GET" })
@@ -106,10 +105,14 @@ window.ReplayWs = (function () {
 	applyOperateState(state);
     var frame = getById("replayFrame");
     if (frame && state.lastPageId) {
-      var nextUrl = window.location.origin + "/ReplayFunction_v3/vdu/" + state.selectedVduNo + "/" + state.lastPageId + ".html";
+      var nextUrl = window.location.origin + "/ReplayFunction/vdu/" + state.selectedVduNo + "/" + state.lastPageId + ".html";
       if (frame.getAttribute("src") !== nextUrl) frame.setAttribute("src", nextUrl);
 	   }
     if (state && state.clientType === "AVDU") renderAvduAlerts(state.avduAlerts || []);
+	
+	if (window.renderEventFromState) {
+	  window.renderEventFromState(state);
+	}
   }
 
   return { connect: connect, fetchCurrentState: fetchCurrentState, renderState: renderState };

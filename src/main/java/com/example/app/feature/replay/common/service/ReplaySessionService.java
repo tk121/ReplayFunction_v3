@@ -1,4 +1,4 @@
-package com.example.app.feature.replay.graphic.service;
+package com.example.app.feature.replay.common.service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -8,7 +8,7 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.example.app.feature.replay.common.auth.LoginUser;
+import com.example.app.feature.auth.model.LoginUser;
 import com.example.app.feature.replay.common.model.ReplayMode;
 import com.example.app.feature.replay.common.model.ReplayState;
 import com.example.app.feature.replay.graphic.dto.ReplayControlRequest;

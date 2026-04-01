@@ -1,4 +1,4 @@
-package com.example.app.feature.replay.graphic.dto;
+package com.example.app.feature.replay.common.dto;
 
 public class ErrorResponse {
 

@@ -10,12 +10,18 @@
     .btn-group button { margin-right: 8px; margin-bottom: 8px; padding: 8px 14px; }
     .status-box { margin-top: 16px; padding: 12px; border: 1px solid #ccc; background: #f7f7f7; }
     .notice { margin-top: 8px; color: #444; font-weight: bold; }
+    .top-bar { margin-bottom: 16px; padding: 12px; border: 1px solid #ccc; background: #f7f7f7; }
+    .top-bar button { margin-left: 12px; }
   </style>
 </head>
 <body>
   <h1>同期再生 操作ウィンドウ</h1>
 
-  <div class="row"><span class="label">ログインユーザー名:</span><input type="text" id="userName" maxlength="50"><button id="btnLogin">ログイン</button></div>
+  <div class="top-bar">
+    ログインユーザー: <span id="loginUserName">-</span>
+    <button id="btnLogout">ログアウト</button>
+  </div>
+
   <div class="row"><span class="label">再生方式:</span><select id="replayMode"><option value="HISTORY">過去再生</option><option value="REALTIME">リアルタイム再生</option></select></div>
   <div class="row"><span class="label">unit_no:</span><select id="unitNo"><option value="1">1</option><option value="2">2</option></select></div>
   <div class="row"><span class="label">表示日:</span><input type="date" id="targetDate" value="2026-01-01"></div>
@@ -31,7 +37,7 @@
     <button id="btnHead">先頭に戻る</button>
     <button id="btnTail">最後尾に進む</button>
   </div>
-  
+
   <div class="notice">現在の操作権保持者: <span id="currentControllerName">-</span></div>
   <div class="notice">ログインユーザー: <span id="currentUserName">-</span></div>
   <div class="notice">ログインユーザー権限: <span id="currentUserRole">-</span></div>
@@ -44,7 +50,7 @@
     <button class="btnOpenVdu" data-vdu="2">VDU2</button>
     <button class="btnOpenVdu" data-vdu="3">VDU3</button>
     <button class="btnOpenVdu" data-vdu="4">VDU4</button>
-	<button id="btnOpenAvdu">AVDU</button>
+    <button id="btnOpenAvdu">AVDU</button>
   </div>
 
   <div class="status-box">
@@ -58,7 +64,37 @@
     <div>速度: <span id="speedLabel">-</span></div>
     <div>最終コマンド: <span id="lastCommandLabel">-</span></div>
   </div>
-  
+
+  <div>
+    <label><input type="radio" name="range" value="4" checked>4時間</label>
+    <label><input type="radio" name="range" value="12">12時間</label>
+    <label><input type="radio" name="range" value="24">24時間</label>
+  </div>
+
+  <h3>VDU1</h3>
+  <div id="chart-vdu1"></div>
+
+  <h3>VDU2</h3>
+  <div id="chart-vdu2"></div>
+
+  <h3>VDU3</h3>
+  <div id="chart-vdu3"></div>
+
+  <h3>VDU4</h3>
+  <div id="chart-vdu4"></div>
+
+  <h3>ALERT1</h3>
+  <div id="chart-alert1"></div>
+
+  <h3>ALERT2</h3>
+  <div id="chart-alert2"></div>
+
+  <h3>ALERT ELECTRICAL</h3>
+  <div id="chart-alertElectrical"></div>
+
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="js/trend.js"></script>
+
   <hr>
 
   <h2>event JSON</h2>

@@ -39,7 +39,7 @@
       var user = JSON.parse(localStorage.getItem("replay.loginUser") || "null");
       document.getElementById("vduTitle").textContent = "VDU" + vduNo;
       if (window.ReplayWs) {
-        window.ReplayWs.connect("replayMode", "VDU", vduNo, "vdu-" + vduNo, user ? user.userId : "");
+        window.ReplayWs.connect("replayMode", "VDU", vduNo, "vdu-" + vduNo);
         window.ReplayWs.fetchCurrentState("VDU", vduNo, "vdu-" + vduNo);
       }
     })();

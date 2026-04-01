@@ -14,8 +14,8 @@ import org.slf4j.LoggerFactory;
 
 import com.example.app.common.json.JsonUtil;
 import com.example.app.common.runtime.AppRuntime;
-import com.example.app.feature.replay.common.auth.LoginUser;
-import com.example.app.feature.replay.graphic.dto.ErrorResponse;
+import com.example.app.feature.auth.model.LoginUser;
+import com.example.app.feature.replay.common.dto.ErrorResponse;
 import com.example.app.feature.replay.graphic.dto.ReplayControlRequest;
 import com.example.app.feature.replay.graphic.dto.ReplayStateResponse;
 

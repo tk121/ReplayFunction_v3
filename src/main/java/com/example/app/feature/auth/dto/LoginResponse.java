@@ -1,6 +1,6 @@
-package com.example.app.feature.replay.graphic.dto;
+package com.example.app.feature.auth.dto;
 
-public class ReplayLoginResponse {
+public class LoginResponse {
     private String userId;
     private String userName;
     private boolean canControl;

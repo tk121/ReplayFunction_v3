@@ -1,85 +1,220 @@
 package com.example.app.feature.replay.event.service;
 
-import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import com.example.app.feature.replay.common.model.ReplayMode;
 import com.example.app.feature.replay.common.model.ReplayState;
+import com.example.app.feature.replay.common.service.ReplaySessionService;
 import com.example.app.feature.replay.event.dto.ReplayEventResponse;
-import com.example.app.feature.replay.event.repository.AlertEventRepository;
-import com.example.app.feature.replay.event.repository.OperationEventRepository;
-import com.example.app.feature.replay.graphic.service.ReplaySessionService;
+import com.example.app.feature.replay.event.model.EventCountPoint;
+import com.example.app.feature.replay.event.repository.AlertCountPerMinuteRepository;
+import com.example.app.feature.replay.event.repository.VduOperationCountPerMinuteRepository;
 
 public class ReplayEventService {
+
     private static final DateTimeFormatter KEY_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd HH:mm:ss");
 
     private final ReplaySessionService sessionService;
-    private final OperationEventRepository operationEventRepository;
-    private final AlertEventRepository alertEventRepository;
+    private final VduOperationCountPerMinuteRepository vduRepository;
+    private final AlertCountPerMinuteRepository alertRepository;
 
     public ReplayEventService(ReplaySessionService sessionService,
-            OperationEventRepository operationEventRepository,
-            AlertEventRepository alertEventRepository) {
+            VduOperationCountPerMinuteRepository vduRepository,
+            AlertCountPerMinuteRepository alertRepository) {
         this.sessionService = sessionService;
-        this.operationEventRepository = operationEventRepository;
-        this.alertEventRepository = alertEventRepository;
+        this.vduRepository = vduRepository;
+        this.alertRepository = alertRepository;
     }
 
-    public ReplayEventResponse getEventSeries(String roomId, int displayHours) {
+    /**
+     * 現在共有されている event 系列を返します。
+     *
+     * <p>
+     * 非操作者が index.html を開いたときの初期表示で使用します。
+     * まだ条件反映されていない場合は空系列を返します。
+     * </p>
+     */
+    public ReplayEventResponse getCurrentSharedSeries(String roomId) {
         ReplayState state = sessionService.getState(roomId);
-        int bucketMinutes = resolveBucketMinutes(displayHours);
-        LocalDateTime[] range = resolveRange(state, displayHours);
-        Map<String, Map<LocalDateTime, Integer>> operationSeries = operationEventRepository.aggregateOperationEvents(state.getUnitNo().intValue(), range[0], range[1], bucketMinutes);
-        Map<LocalDateTime, Integer> alertSeries = alertEventRepository.aggregateAlertEvents(state.getUnitNo().intValue(), range[0], range[1], bucketMinutes);
-        Map<String, Map<String, Integer>> result = new LinkedHashMap<String, Map<String, Integer>>();
-        result.put("VDU1", convert(operationSeries.get("VDU1")));
-        result.put("VDU2", convert(operationSeries.get("VDU2")));
-        result.put("VDU3", convert(operationSeries.get("VDU3")));
-        result.put("VDU4", convert(operationSeries.get("VDU4")));
-        result.put("ALERT", convert(alertSeries));
+
         ReplayEventResponse response = new ReplayEventResponse();
-        response.setSeries(result);
+        response.setSeries(copySeries(state.getEventSeries()));
         return response;
     }
 
-    private LocalDateTime[] resolveRange(ReplayState state, int displayHours) {
-        if (state.getReplayMode() == ReplayMode.REALTIME) {
-            LocalDateTime end = state.getCurrentReplayTime();
-            LocalDateTime dayStart = end.toLocalDate().atStartOfDay();
-            LocalDateTime start = end.minusHours(displayHours);
-            if (start.isBefore(dayStart)) {
-                start = dayStart;
+    /**
+     * 現在の ReplayState の条件をもとに、その日分の event 集計済みデータを取得して state に保持します。
+     *
+     * <p>
+     * 操作者の APPLY_CONDITION 時に使用します。
+     * </p>
+     */
+    public Map<String, Map<String, Integer>> loadAndStoreForState(ReplayState state) {
+        LocalDate targetDate = resolveTargetDate(state);
+
+        List<EventCountPoint> vduPoints =
+                vduRepository.findByDay(state.getUnitNo().intValue(), targetDate);
+
+        List<EventCountPoint> alertPoints =
+                alertRepository.findByDay(state.getUnitNo().intValue(), targetDate);
+
+        Map<String, Map<String, Integer>> series = createEmptySeries();
+        LocalDateTime newest = null;
+
+        for (EventCountPoint point : vduPoints) {
+            String key = toVduKey(point.getSystemNo());
+            if (!series.containsKey(key)) {
+                continue;
             }
-            return new LocalDateTime[] { start, end };
+
+            series.get(key).put(
+                    point.getBucketStart().format(KEY_FORMAT),
+                    Integer.valueOf(point.getCount()));
+
+            if (newest == null || point.getBucketStart().isAfter(newest)) {
+                newest = point.getBucketStart();
+            }
         }
-        LocalDateTime base = state.getStartDateTime();
-        LocalDateTime current = state.getCurrentReplayTime();
-        long windowSeconds = displayHours * 3600L;
-        long elapsed = Math.max(0L, Duration.between(base, current).getSeconds());
-        long windowIndex = elapsed / windowSeconds;
-        LocalDateTime start = base.plusSeconds(windowIndex * windowSeconds);
-        LocalDateTime end = start.plusHours(displayHours);
-        return new LocalDateTime[] { start, end };
+
+        for (EventCountPoint point : alertPoints) {
+            String key = toAlertKey(point.getSystemNo());
+            if (!series.containsKey(key)) {
+                continue;
+            }
+
+            series.get(key).put(
+                    point.getBucketStart().format(KEY_FORMAT),
+                    Integer.valueOf(point.getCount()));
+
+            if (newest == null || point.getBucketStart().isAfter(newest)) {
+                newest = point.getBucketStart();
+            }
+        }
+
+        state.setEventSeries(series);
+        state.setEventLastLoadedBucketStart(newest);
+        state.setConditionApplied(true);
+
+        return copySeries(series);
     }
 
-    private Map<String, Integer> convert(Map<LocalDateTime, Integer> source) {
-        Map<String, Integer> converted = new LinkedHashMap<String, Integer>();
-        if (source == null) return converted;
-        for (Map.Entry<LocalDateTime, Integer> entry : source.entrySet()) {
-            converted.put(entry.getKey().format(KEY_FORMAT), entry.getValue());
+    /**
+     * REALTIME 用に、最後に取り込んだ bucket_start より後の差分だけ取得して state にマージします。
+     *
+     * <p>
+     * ReplayEngine の tick から呼ばれる想定です。
+     * </p>
+     */
+    public Map<String, Map<String, Integer>> loadRealtimeAppendAndMerge(ReplayState state) {
+        if (state.getEventLastLoadedBucketStart() == null) {
+            return createEmptySeries();
         }
-        return converted;
+
+        List<EventCountPoint> vduPoints =
+                vduRepository.findAfter(state.getUnitNo().intValue(), state.getEventLastLoadedBucketStart());
+
+        List<EventCountPoint> alertPoints =
+                alertRepository.findAfter(state.getUnitNo().intValue(), state.getEventLastLoadedBucketStart());
+
+        Map<String, Map<String, Integer>> append = createEmptySeries();
+        LocalDateTime newest = state.getEventLastLoadedBucketStart();
+
+        for (EventCountPoint point : vduPoints) {
+            String key = toVduKey(point.getSystemNo());
+            String timeKey = point.getBucketStart().format(KEY_FORMAT);
+
+            append.get(key).put(timeKey, Integer.valueOf(point.getCount()));
+            ensureSeriesBucket(state, key).put(timeKey, Integer.valueOf(point.getCount()));
+
+            if (point.getBucketStart().isAfter(newest)) {
+                newest = point.getBucketStart();
+            }
+        }
+
+        for (EventCountPoint point : alertPoints) {
+            String key = toAlertKey(point.getSystemNo());
+            String timeKey = point.getBucketStart().format(KEY_FORMAT);
+
+            append.get(key).put(timeKey, Integer.valueOf(point.getCount()));
+            ensureSeriesBucket(state, key).put(timeKey, Integer.valueOf(point.getCount()));
+
+            if (point.getBucketStart().isAfter(newest)) {
+                newest = point.getBucketStart();
+            }
+        }
+
+        state.setEventLastLoadedBucketStart(newest);
+        return append;
     }
 
-    private int resolveBucketMinutes(int displayHours) {
-        switch (displayHours) {
-            case 4: return 1;
-            case 12: return 3;
-            case 24: return 6;
-            default: throw new IllegalArgumentException("displayHours must be 4, 12, or 24.");
+    private LocalDate resolveTargetDate(ReplayState state) {
+        if (state.getReplayMode() == ReplayMode.REALTIME) {
+            return state.getCurrentReplayTime().toLocalDate();
         }
+        return state.getStartDateTime().toLocalDate();
+    }
+
+    private String toVduKey(int vduNo) {
+        if (vduNo == 1) return "vdu1";
+        if (vduNo == 2) return "vdu2";
+        if (vduNo == 3) return "vdu3";
+        if (vduNo == 4) return "vdu4";
+        return "vdu" + vduNo;
+    }
+
+    private String toAlertKey(int systemNo) {
+        if (systemNo == 1) return "alert1";
+        if (systemNo == 2) return "alert2";
+        if (systemNo == 3) return "alertElectrical";
+        return "alert" + systemNo;
+    }
+
+    private Map<String, Map<String, Integer>> createEmptySeries() {
+        Map<String, Map<String, Integer>> series = new LinkedHashMap<String, Map<String, Integer>>();
+        series.put("vdu1", new LinkedHashMap<String, Integer>());
+        series.put("vdu2", new LinkedHashMap<String, Integer>());
+        series.put("vdu3", new LinkedHashMap<String, Integer>());
+        series.put("vdu4", new LinkedHashMap<String, Integer>());
+        series.put("alert1", new LinkedHashMap<String, Integer>());
+        series.put("alert2", new LinkedHashMap<String, Integer>());
+        series.put("alertElectrical", new LinkedHashMap<String, Integer>());
+        return series;
+    }
+
+    private Map<String, Integer> ensureSeriesBucket(ReplayState state, String key) {
+        if (state.getEventSeries() == null) {
+            state.setEventSeries(createEmptySeries());
+        }
+
+        Map<String, Integer> bucket = state.getEventSeries().get(key);
+        if (bucket == null) {
+            bucket = new LinkedHashMap<String, Integer>();
+            state.getEventSeries().put(key, bucket);
+        }
+        return bucket;
+    }
+
+    private Map<String, Map<String, Integer>> copySeries(Map<String, Map<String, Integer>> source) {
+        Map<String, Map<String, Integer>> copy = createEmptySeries();
+
+        if (source == null) {
+            return copy;
+        }
+
+        for (Map.Entry<String, Map<String, Integer>> entry : source.entrySet()) {
+            if (!copy.containsKey(entry.getKey())) {
+                copy.put(entry.getKey(), new LinkedHashMap<String, Integer>());
+            }
+            if (entry.getValue() != null) {
+                copy.get(entry.getKey()).putAll(entry.getValue());
+            }
+        }
+
+        return copy;
     }
 }
