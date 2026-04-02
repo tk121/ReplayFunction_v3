@@ -12,7 +12,7 @@ import javax.websocket.Session;
  */
 public class WsClient {
 	
-    public static final String CLIENT_TYPE_CONTROL = "CONTROL";
+    public static final String CLIENT_TYPE_CONTROL = "EVENT";
     public static final String CLIENT_TYPE_VDU = "VDU";
     public static final String CLIENT_TYPE_AVDU = "AVDU";
 
@@ -30,7 +30,7 @@ public class WsClient {
 	 * 例:
 	 * </p>
 	 * <ul>
-	 *   <li>CONTROL: 操作画面</li>
+	 *   <li>EVENT: 操作画面</li>
 	 *   <li>VDU: 表示画面</li>
 	 * </ul>
 	 */
@@ -41,7 +41,7 @@ public class WsClient {
 	 *
 	 * <p>
 	 * 表示画面の場合、どの VDU の状態を受け取るかを表します。
-	 * CONTROL 側では 0 の想定です。
+	 * EVENT 側では 0 の想定です。
 	 * </p>
 	 */
 	private final int vduNo;

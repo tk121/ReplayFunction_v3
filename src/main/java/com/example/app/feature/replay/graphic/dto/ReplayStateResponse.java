@@ -18,7 +18,7 @@ import com.example.app.feature.replay.graphic.model.ReplayAvduAlert;
  */
 public class ReplayStateResponse {
 
-    /** CONTROL / VDU / AVDU */
+    /** EVENT / VDU / AVDU */
     private String clientType;
 
     /** ルームID */

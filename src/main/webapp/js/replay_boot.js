@@ -3,18 +3,17 @@
         return;
     }
 
-    window.REPLAY_SCREEN_TYPE = "CONTROL";
+    window.REPLAY_SCREEN_TYPE = "EVENT";
 
     var targetDate = document.getElementById("targetDate");
     var displayHours = document.getElementById("displayHours");
     var startTime = document.getElementById("startTime");
-    var startTimeRule = document.getElementById("startTimeRule");
     var replayMode = document.getElementById("replayMode");
     var unitNo = document.getElementById("unitNo");
+    var playSpeed = document.getElementById("playSpeed");
     var btnApply = document.getElementById("btnApply");
     var btnPlay = document.getElementById("btnPlay");
     var btnStop = document.getElementById("btnStop");
-    var btnFastForward = document.getElementById("btnFastForward");
     var btnHead = document.getElementById("btnHead");
     var btnTail = document.getElementById("btnTail");
     var btnOpenAvdu = document.getElementById("btnOpenAvdu");
@@ -48,51 +47,22 @@
         }
     }
 
-    function getAllowedHours(period) {
-        if (period === "4") return [0, 4, 8, 12, 16, 20];
-        if (period === "12") return [0, 12];
-        return [0];
+    function validateStartDateTime() {
+        if (!targetDate.value) {
+            throw new Error("表示日を入力してください。");
+        }
+        if (!startTime.value) {
+            throw new Error("開始時刻を入力してください。");
+        }
+        return targetDate.value + "T" + startTime.value + ":00";
     }
 
-    function updateStartTimeConstraint() {
-        var allowedHours = getAllowedHours(displayHours.value);
-        var current = startTime.value;
-
-        if (startTimeRule) {
-            startTimeRule.textContent = displayHours.value === "4"
-                ? "4時間表示の場合は 00,04,08,12,16,20 時台を指定してください"
-                : (displayHours.value === "12"
-                    ? "12時間表示の場合は 00,12 時台を指定してください"
-                    : "24時間表示の場合は 00 時台を指定してください");
+    function validateSpeed() {
+        var speed = Number(playSpeed.value);
+        if (speed !== 1 && speed !== 2 && speed !== 4 && speed !== 8) {
+            throw new Error("速度は 1, 2, 4, 8 のいずれかを選択してください。");
         }
-
-        if (!current) {
-            startTime.value = String(allowedHours[0]).padStart(2, "0") + ":00";
-            return;
-        }
-
-        var parts = current.split(":");
-        var hour = Number(parts[0]);
-        var minute = Number(parts[1]);
-
-        if (allowedHours.indexOf(hour) === -1) {
-            startTime.value = String(allowedHours[0]).padStart(2, "0") + ":" + String(isNaN(minute) ? 0 : minute).padStart(2, "0");
-        }
-    }
-
-    function validateStartTime() {
-        var value = startTime.value;
-        if (!value) throw new Error("開始時刻を入力してください。");
-
-        var parts = value.split(":");
-        var hour = Number(parts[0]);
-        var allowedHours = getAllowedHours(displayHours.value);
-
-        if (allowedHours.indexOf(hour) === -1) {
-            throw new Error("表示期間に対応しない開始時刻です。");
-        }
-
-        return targetDate.value + "T" + value + ":00";
+        return speed;
     }
 
     function sendControl(command) {
@@ -106,11 +76,12 @@
             roomId: "replayMode",
             clientId: clientId,
             command: command,
-            startDateTime: replayMode.value === "HISTORY" ? validateStartTime() : null,
+            startDateTime: replayMode.value === "HISTORY" ? validateStartDateTime() : null,
             displayHours: Number(displayHours.value),
             unitNo: Number(unitNo.value),
             replayMode: replayMode.value,
-            operatorName: user.userName
+            operatorName: user.userName,
+            speed: command === "CHANGE_SPEED" ? validateSpeed() : null
         };
 
         return fetch("ReplayFunction/replay/control", {
@@ -129,6 +100,10 @@
                 window.ReplayWs.renderState(data);
             }
             renderEventFromState(data);
+
+            if (playSpeed && data && data.speed) {
+                playSpeed.value = String(data.speed);
+            }
             return data;
         });
     }
@@ -164,7 +139,9 @@
     function initDefault() {
         displayHours.value = "4";
         startTime.value = "00:00";
-        updateStartTimeConstraint();
+        if (playSpeed) {
+            playSpeed.value = "1";
+        }
         updateLoginUserDisplay();
     }
 
@@ -189,34 +166,42 @@
         var realtime = replayMode.value === "REALTIME";
         targetDate.disabled = realtime;
         startTime.disabled = realtime;
-        if (startTimeRule) startTimeRule.style.display = realtime ? "none" : "block";
     });
 
     displayHours.addEventListener("change", function() {
-        updateStartTimeConstraint();
         if (window.redrawAllCharts) {
             window.redrawAllCharts();
         }
     });
 
+    playSpeed.addEventListener("change", function() {
+        sendControl("CHANGE_SPEED").catch(function(e) {
+            alert("速度変更に失敗しました: " + e.message);
+        });
+    });
+
     btnPlay.addEventListener("click", function() {
-        sendControl("PLAY").catch(function(e) { alert("再生に失敗しました: " + e.message); });
+        sendControl("PLAY").catch(function(e) {
+            alert("再生に失敗しました: " + e.message);
+        });
     });
 
     btnStop.addEventListener("click", function() {
-        sendControl("STOP").catch(function(e) { alert("停止に失敗しました: " + e.message); });
-    });
-
-    btnFastForward.addEventListener("click", function() {
-        sendControl("FAST_FORWARD").catch(function(e) { alert("早送りに失敗しました: " + e.message); });
+        sendControl("STOP").catch(function(e) {
+            alert("停止に失敗しました: " + e.message);
+        });
     });
 
     btnHead.addEventListener("click", function() {
-        sendControl("GO_HEAD").catch(function(e) { alert("先頭移動に失敗しました: " + e.message); });
+        sendControl("GO_HEAD").catch(function(e) {
+            alert("先頭移動に失敗しました: " + e.message);
+        });
     });
 
     btnTail.addEventListener("click", function() {
-        sendControl("GO_TAIL").catch(function(e) { alert("最後尾移動に失敗しました: " + e.message); });
+        sendControl("GO_TAIL").catch(function(e) {
+            alert("最後尾移動に失敗しました: " + e.message);
+        });
     });
 
     btnApply.addEventListener("click", function() {
@@ -234,9 +219,8 @@
     bindAvduButton();
 
     if (window.ReplayWs) {
-        var user = getStoredUser();
-        window.ReplayWs.connect("replayMode", "CONTROL", "", clientId);
-        window.ReplayWs.fetchCurrentState("CONTROL", 0, clientId);
+        window.ReplayWs.connect("replayMode", "EVENT", "", clientId);
+        window.ReplayWs.fetchCurrentState("EVENT", 0, clientId);
     }
 
     window.renderEventFromState = renderEventFromState;

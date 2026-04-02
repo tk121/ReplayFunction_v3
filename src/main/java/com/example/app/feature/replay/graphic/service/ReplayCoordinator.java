@@ -149,9 +149,9 @@ public class ReplayCoordinator {
             } else if ("STOP".equals(command)) {
                 state.setPlayStatus(ReplayState.STATUS_STOPPED);
 
-            } else if ("FAST_FORWARD".equals(command)) {
-                state.setPlayStatus(ReplayState.STATUS_PLAYING);
-                state.setSpeed(nextSpeed(state.getSpeed()));
+            } else if ("CHANGE_SPEED".equals(command)) {
+            	 	int requestedSpeed = normalizeSpeed(req.getSpeed());
+                state.setSpeed(requestedSpeed);
 
             } else if ("GO_HEAD".equals(command)) {
                 state.setPlayStatus(ReplayState.STATUS_STOPPED);
@@ -320,18 +320,22 @@ public class ReplayCoordinator {
         return true;
     }
 
-    private int nextSpeed(int current) {
-        if (current <= 1) return 2;
-        if (current == 2) return 4;
-        if (current == 4) return 8;
-        return 1;
-    }
-
     private String normalizeCommand(String command) {
         if (command == null || command.trim().length() == 0) {
             return "APPLY_CONDITION";
         }
         return command.trim();
+    }
+    
+    private int normalizeSpeed(Integer speed) {
+        if (speed == null) {
+            throw new IllegalArgumentException("速度が指定されていません。");
+        }
+        int value = speed.intValue();
+        if (value != 1 && value != 2 && value != 4 && value != 8) {
+            throw new IllegalArgumentException("速度は 1, 2, 4, 8 のいずれかで指定してください。");
+        }
+        return value;
     }
 
     private void updateLastAppliedState(ReplayState state, ReplayVduState vduState, ReplayOperationEvent operate) {

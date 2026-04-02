@@ -47,8 +47,6 @@ public class AlertLogRepository {
      */
     public List<AlertLog> findActiveAlertsAt(LocalDateTime replayTime) throws Exception {
 
-        log.debug("findActiveAlertsAt start replayTime={}", replayTime);
-
         String sql =
                 "SELECT " +
                 "    a.alert_id, " +
@@ -93,14 +91,13 @@ public class AlertLogRepository {
                 list.add(mapRow(rs));
             }
 
-            log.debug("findActiveAlertsAt result count={}", list.size());
             return list;
 
         } finally {
             close(rs);
             close(ps);
             close(con);
-            log.debug("findActiveAlertsAt end");
+
         }
     }
 

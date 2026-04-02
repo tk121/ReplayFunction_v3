@@ -35,7 +35,7 @@ public class ReplayResponseService {
         synchronized (state) {
             ReplayStateResponse res = new ReplayStateResponse();
             populateCommon(res, state, loginUser);
-            res.setClientType("CONTROL");
+            res.setClientType("EVENT");
             res.setSelectedVduNo(0);
             populateWholeState(res, state);
             return res;

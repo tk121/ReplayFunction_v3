@@ -60,6 +60,7 @@ public class ReplayControlRequest {
     private String replayMode;
     private String operatorName;
     private String clientId;
+    private Integer speed;
 
     public String getRoomId() { return roomId; }
     public void setRoomId(String roomId) { this.roomId = roomId; }
@@ -77,4 +78,6 @@ public class ReplayControlRequest {
     public void setOperatorName(String operatorName) { this.operatorName = operatorName; }
     public String getClientId() { return clientId; }
     public void setClientId(String clientId) { this.clientId = clientId; }
+    public Integer getSpeed() { return speed; }
+    public void setSpeed(Integer speed) { this.speed = speed; }
 }
