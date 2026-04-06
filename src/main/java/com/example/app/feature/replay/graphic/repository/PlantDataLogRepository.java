@@ -34,17 +34,17 @@ public class PlantDataLogRepository {
 	 */
 	public List<PlantDataLog> findByUnitNoAndOccurredAtRange(
 			Integer unitNo,
-			LocalDateTime fromExclusive,
-			LocalDateTime toInclusive) {
+			LocalDateTime replayTime) {
 
 		List<PlantDataLog> result = new ArrayList<PlantDataLog>();
 
-		if (unitNo == null || fromExclusive == null || toInclusive == null) {
+		if (unitNo == null || replayTime == null ) {
 			return result;
 		}
 
 		String sql = "select "
-				+ "    data_id"
+				+ "    distinct on (symbol)"
+				+ "  , data_id"
 				+ "  , unit_no"
 				+ "  , occurred_at"
 				+ "  , symbol"
@@ -55,16 +55,14 @@ public class PlantDataLogRepository {
 				+ "  , status"
 				+ " from plant_data_log"
 				+ " where unit_no = ?"
-				+ "   and occurred_at > ?"
 				+ "   and occurred_at <= ?"
-				+ " order by occurred_at asc, data_id asc";
+				+ " order by symbol, occurred_at desc, data_id desc";
 
 		try (Connection con = dataSource.getConnection();
 				PreparedStatement ps = con.prepareStatement(sql)) {
 
 			ps.setInt(1, unitNo.intValue());
-			ps.setTimestamp(2, Timestamp.valueOf(fromExclusive));
-			ps.setTimestamp(3, Timestamp.valueOf(toInclusive));
+			ps.setTimestamp(2, Timestamp.valueOf(replayTime));
 
 			try (ResultSet rs = ps.executeQuery()) {
 				while (rs.next()) {
@@ -90,8 +88,8 @@ public class PlantDataLogRepository {
 			}
 
 		} catch (Exception e) {
-			log.error("Failed to fetch plant_data_log. unitNo={}, fromExclusive={}, toInclusive={}",
-					unitNo, fromExclusive, toInclusive, e);
+			log.error("Failed to fetch plant_data_log. unitNo={}, replayTime={}",
+					unitNo, replayTime, e);
 			throw new RuntimeException("plant_data_log の取得に失敗しました", e);
 		}
 

@@ -10,5 +10,6 @@ create table if not exists plant_data_log(
     , ai_value numeric(10, 6)
     , di_value integer
     , status text not null
+    , created_at timestamp default current_timestamp
 );
 

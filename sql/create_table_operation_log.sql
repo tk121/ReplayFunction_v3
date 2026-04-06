@@ -11,5 +11,6 @@ create table if not exists operation_log(
     , control_id text
     , button_id text
     , value numeric (10, 6)
+    , created_at timestamp default current_timestamp
 );
 

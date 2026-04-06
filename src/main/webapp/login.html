@@ -70,12 +70,12 @@
     <div id="errorMessage" class="error"></div>
   </div>
 
-  <script>
+  <script type="module">
     (function () {
-      var userName = document.getElementById("userName");
-      var password = document.getElementById("password");
-      var btnLogin = document.getElementById("btnLogin");
-      var errorMessage = document.getElementById("errorMessage");
+      const userName = document.getElementById("userName");
+      const password = document.getElementById("password");
+      const btnLogin = document.getElementById("btnLogin");
+      const errorMessage = document.getElementById("errorMessage");
 
       function setError(message) {
         errorMessage.textContent = message || "";
@@ -92,32 +92,32 @@
             password: password.value
           })
         })
-        .then(function (res) {
+        .then((res) => {
           if (!res.ok) {
-            return res.json().then(function (data) {
+            return res.json().then((data) => {
               throw new Error(data.message || "ログインに失敗しました");
             });
           }
           return res.json();
         })
-        .then(function (data) {
+        .then((data) => {
           localStorage.setItem("replay.loginUser", JSON.stringify(data));
           location.href = "index.html";
         })
-        .catch(function (e) {
+        .catch((e) => {
           setError(e.message);
         });
       }
 
       btnLogin.addEventListener("click", doLogin);
 
-      password.addEventListener("keydown", function (e) {
+      password.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
           doLogin();
         }
       });
 
-      userName.addEventListener("keydown", function (e) {
+      userName.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
           doLogin();
         }

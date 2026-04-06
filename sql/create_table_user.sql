@@ -5,7 +5,9 @@ create table if not exists "user" (
     user_name varchar(100) not null unique,
     password varchar(255) not null,
     can_control boolean not null default false,
-    enabled boolean not null default true
+    enabled boolean not null default true,
+    created_at timestamp default current_timestamp
+    
 );
 
 insert into "user" (

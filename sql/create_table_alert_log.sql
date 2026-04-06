@@ -13,5 +13,6 @@ create table if not exists alert_log(
     , firsthit boolean default false
     , flick boolean default false
     , yokoku_color text
+    , created_at timestamp default current_timestamp
 );
 

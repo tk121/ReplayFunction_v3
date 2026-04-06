@@ -1,3 +1,9 @@
+/**
+ * Trend data visualization module
+ * トレンドデータをD3.jsを使ってチャートとして表示する。
+ */
+
+// トレンドデータの格納
 let rawTrendData = {
   vdu1: {},
   vdu2: {},
@@ -8,17 +14,24 @@ let rawTrendData = {
   alertElectrical: {}
 };
 
+// 現在の表示範囲（時間）
 let currentDisplayRangeHours = 4;
 
+// シリーズキーの定義
 const SERIES_KEYS = ["vdu1", "vdu2", "vdu3", "vdu4", "alert1", "alert2", "alertElectrical"];
+// チャートサイズの定数
 const CHART_WIDTH = 900;
 const CHART_HEIGHT = 260;
 const MARGIN = { top: 20, right: 20, bottom: 40, left: 60 };
 
+// DOM読み込み完了時にイベントリスナーを設定
 document.addEventListener("DOMContentLoaded", () => {
   bindRangeEvents();
 });
 
+/**
+ * 表示範囲のラジオボタンにイベントリスナーを設定する
+ */
 function bindRangeEvents() {
   const radios = document.querySelectorAll('input[name="range"]');
   radios.forEach(radio => {
@@ -29,12 +42,23 @@ function bindRangeEvents() {
   });
 }
 
+/**
+ * トレンドデータを受信したときの処理
+ * @param {Object} json - トレンドデータ
+ */
 function onTrendDataReceived(json) {
   rawTrendData = normalizeRawTrendData(json || {});
   redrawAllCharts();
 }
+
+// グローバル関数として公開（後方互換性）
 window.onTrendDataReceived = onTrendDataReceived;
 
+/**
+ * 生のトレンドデータを正規化する
+ * @param {Object} json - 生データ
+ * @returns {Object} 正規化されたデータ
+ */
 function normalizeRawTrendData(json) {
   const normalized = {};
   for (const key of SERIES_KEYS) {
@@ -43,6 +67,11 @@ function normalizeRawTrendData(json) {
   return normalized;
 }
 
+/**
+ * 表示範囲に応じた集計間隔（分）を返す
+ * @param {number} displayRangeHours - 表示範囲（時間）
+ * @returns {number} 集計間隔（分）
+ */
 function getAggregationMinutes(displayRangeHours) {
   if (displayRangeHours === 4) return 1;
   if (displayRangeHours === 12) return 3;
@@ -50,6 +79,11 @@ function getAggregationMinutes(displayRangeHours) {
   return 1;
 }
 
+/**
+ * YYYYMMDD HH:MM:SS形式の文字列をDateオブジェクトに変換する
+ * @param {string} text - 日時文字列
+ * @returns {Date} Dateオブジェクト
+ */
 function parseYmdHms(text) {
   const yyyy = Number(text.substring(0, 4));
   const mm = Number(text.substring(4, 6)) - 1;
@@ -60,6 +94,11 @@ function parseYmdHms(text) {
   return new Date(yyyy, mm, dd, hh, mi, ss);
 }
 
+/**
+ * DateオブジェクトをYYYYMMDD HH:MM:SS形式の文字列に変換する
+ * @param {Date} date - Dateオブジェクト
+ * @returns {string} 日時文字列
+ */
 function formatYmdHms(date) {
   const yyyy = date.getFullYear();
   const mm = String(date.getMonth() + 1).padStart(2, "0");
@@ -70,6 +109,11 @@ function formatYmdHms(date) {
   return `${yyyy}${mm}${dd} ${hh}:${mi}:${ss}`;
 }
 
+/**
+ * シリーズデータを時間と値のペアに変換する
+ * @param {Object} seriesData - シリーズデータ
+ * @returns {Array} 変換されたデータ配列
+ */
 function toTimeValueArray(seriesData) {
   return Object.entries(seriesData)
     .map(([time, value]) => ({
@@ -80,6 +124,12 @@ function toTimeValueArray(seriesData) {
     .sort((a, b) => a.date - b.date);
 }
 
+/**
+ * 日時を指定された単位でバケットに丸める
+ * @param {Date} date - 日時
+ * @param {number} unitMinutes - 単位（分）
+ * @returns {Date} 丸められた日時
+ */
 function floorToBucket(date, unitMinutes) {
   const d = new Date(date.getTime());
   d.setSeconds(0, 0);
@@ -88,6 +138,12 @@ function floorToBucket(date, unitMinutes) {
   return d;
 }
 
+/**
+ * シリーズデータを集計する
+ * @param {Array} series - シリーズデータ
+ * @param {number} unitMinutes - 集計単位（分）
+ * @returns {Array} 集計されたデータ
+ */
 function aggregateSeries(series, unitMinutes) {
   if (unitMinutes === 1) {
     return series.map(item => ({
@@ -114,6 +170,12 @@ function aggregateSeries(series, unitMinutes) {
   return Array.from(bucketMap.values()).sort((a, b) => a.date - b.date);
 }
 
+/**
+ * 表示範囲でシリーズデータをフィルタリングする
+ * @param {Array} series - シリーズデータ
+ * @param {number} displayRangeHours - 表示範囲（時間）
+ * @returns {Array} フィルタリングされたデータ
+ */
 function filterSeriesByDisplayRange(series, displayRangeHours) {
   if (!series || series.length === 0) {
     return [];
@@ -123,6 +185,11 @@ function filterSeriesByDisplayRange(series, displayRangeHours) {
   return series.filter(item => item.date >= fromDate);
 }
 
+/**
+ * 表示用のシリーズデータを構築する
+ * @param {string} seriesKey - シリーズキー
+ * @returns {Array} 表示用データ
+ */
 function buildDisplaySeries(seriesKey) {
   const source = rawTrendData[seriesKey] || {};
   const minuteSeries = toTimeValueArray(source);
@@ -130,6 +197,9 @@ function buildDisplaySeries(seriesKey) {
   return filterSeriesByDisplayRange(aggregated, currentDisplayRangeHours);
 }
 
+/**
+ * すべてのチャートを再描画する
+ */
 function redrawAllCharts() {
   drawLineChart("#chart-vdu1", buildDisplaySeries("vdu1"), "VDU1");
   drawLineChart("#chart-vdu2", buildDisplaySeries("vdu2"), "VDU2");
@@ -139,8 +209,16 @@ function redrawAllCharts() {
   drawLineChart("#chart-alert2", buildDisplaySeries("alert2"), "ALERT2");
   drawLineChart("#chart-alertElectrical", buildDisplaySeries("alertElectrical"), "ALERT ELECTRICAL");
 }
+
+// グローバル関数として公開（後方互換性）
 window.redrawAllCharts = redrawAllCharts;
 
+/**
+ * 折れ線チャートを描画する
+ * @param {string} containerSelector - コンテナのセレクタ
+ * @param {Array} series - シリーズデータ
+ * @param {string} title - チャートタイトル
+ */
 function drawLineChart(containerSelector, series, title) {
   const container = d3.select(containerSelector);
   if (container.empty()) {
@@ -210,3 +288,7 @@ function drawLineChart(containerSelector, series, title) {
     .attr("y", 14)
     .text(`${title} (${currentDisplayRangeHours}時間表示 / ${getAggregationMinutes(currentDisplayRangeHours)}分集計)`);
 }
+
+// Export functions for global access (backward compatibility)
+window.onTrendDataReceived = onTrendDataReceived;
+window.redrawAllCharts = redrawAllCharts;

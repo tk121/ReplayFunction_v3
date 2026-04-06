@@ -51,24 +51,24 @@
 		<div class="line">value: <span id="lastValueLabel">-</span></div>
 	</div>
 	<iframe id="replayFrame" src="about:blank"></iframe>
-	<script src="js/replay_ws.js"></script>
-	<script>
+	<script type="module" src="js/replay_ws.js"></script>
+	<script type="module">
+		import { connect, fetchCurrentState } from './js/replay_ws.js';
+
 		(function () {
-			var params = new URLSearchParams(location.search);
-			var vduNo = params.get("vdu") || "1";
+			const params = new URLSearchParams(location.search);
+			const vduNo = params.get("vdu") || "1";
 
 			function createUniqueClientId(vduNo) {
-				return "vdu-" + vduNo + "-" + new Date().getTime() + "-" + Math.floor(Math.random() * 1000000);
+				return `vdu-${vduNo}-${new Date().getTime()}-${Math.floor(Math.random() * 1000000)}`;
 			}
 
-			var clientId = createUniqueClientId(vduNo);
+			const clientId = createUniqueClientId(vduNo);
 
-			document.getElementById("vduTitle").textContent = "VDU" + vduNo;
+			document.getElementById("vduTitle").textContent = `VDU${vduNo}`;
 
-			if (window.ReplayWs) {
-				window.ReplayWs.connect("replayMode", "VDU", vduNo, clientId);
-				window.ReplayWs.fetchCurrentState("VDU", vduNo, clientId);
-			}
+			connect("replayMode", "VDU", vduNo, clientId);
+			fetchCurrentState("VDU", vduNo, clientId);
 		})();
 	</script>
 </body>

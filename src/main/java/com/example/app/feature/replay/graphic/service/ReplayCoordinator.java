@@ -229,7 +229,7 @@ public class ReplayCoordinator {
         }
 
         // plant_data_log 実行
-//        applyPlantDataWindow(state, fromExclusive, toInclusive);
+       applyPlantDataWindow(state, toInclusive);
 
         // AVDU はその時点の有効アラート一覧を再構築
         refreshAvduSnapshotAt(state, toInclusive);
@@ -251,15 +251,15 @@ public class ReplayCoordinator {
         }
     }
 
-    private void applyPlantDataWindow(ReplayState state, LocalDateTime fromExclusive, LocalDateTime toInclusive) throws Exception {
+    private void applyPlantDataWindow(ReplayState state, LocalDateTime replayTime) throws Exception {
         if (state.getUnitNo() == null) {
-            log.warn("Skip plant_data_log because state.unitNo is null. fromExclusive={}, toInclusive={}",
-                    fromExclusive, toInclusive);
+            log.warn("Skip plant_data_log because state.unitNo is null. replayTime={}",
+            		replayTime);
             return;
         }
 
         List<PlantDataLog> plantRows =
-                plantDataLogRepository.findByUnitNoAndOccurredAtRange(state.getUnitNo(), fromExclusive, toInclusive);
+                plantDataLogRepository.findByUnitNoAndOccurredAtRange(state.getUnitNo(), replayTime);
 
         try {
             externalProcessService.submitPlantData(plantRows);

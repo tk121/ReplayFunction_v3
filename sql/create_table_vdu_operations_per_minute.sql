@@ -6,4 +6,5 @@ create table if not exists vdu_operations_per_minute(
     , vdu_no integer not null
     , bucket_start timestamp not null
     , operations_count integer not null
+    , created_at timestamp default current_timestamp
 );

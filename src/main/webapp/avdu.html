@@ -29,15 +29,15 @@
     <thead><tr><th>alert_id</th><th>unit_no</th><th>alert_tag</th><th>alert_name_1</th><th>alert_name_2</th><th>alert_severity</th><th>column_no</th><th>firsthit</th><th>flick</th><th>yokoku_color</th></tr></thead>
     <tbody id="avduAlertBody"><tr><td colspan="10">読込中...</td></tr></tbody>
   </table>
-  <script src="js/replay_ws.js"></script>
-  <script>
+  <script type="module" src="js/replay_ws.js"></script>
+  <script type="module">
+    import { connect, fetchCurrentState } from './js/replay_ws.js';
+
     (function () {
       window.REPLAY_SCREEN_TYPE = "AVDU";
-      var user = JSON.parse(localStorage.getItem("replay.loginUser") || "null");
-      if (window.ReplayWs) {
-        window.ReplayWs.connect("replayMode", "AVDU", "", "avdu");
-        window.ReplayWs.fetchCurrentState("AVDU", 0, "avdu");
-      }
+      const user = JSON.parse(localStorage.getItem("replay.loginUser") || "null");
+      connect("replayMode", "AVDU", "", "avdu");
+      fetchCurrentState("AVDU", 0, "avdu");
     })();
   </script>
 </body>
