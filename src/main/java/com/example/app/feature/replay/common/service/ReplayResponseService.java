@@ -90,7 +90,6 @@ public class ReplayResponseService {
         res.setRoomId(state.getRoomId());
         res.setUnitNo(state.getUnitNo());
         res.setReplayMode(state.getReplayMode().name());
-        res.setOperatorName(state.getOperatorName());
         res.setOperatorIp(state.getOperatorIp());
         res.setPlayStatus(state.getPlayStatus());
         res.setStartDateTime(state.getStartDateTime());

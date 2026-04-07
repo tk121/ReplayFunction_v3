@@ -27,4 +27,10 @@
 		<param-value>3000</param-value>
 	</context-param>
 
+	<!-- Plant サーバ種別: "c-process" (既定) または "java-process" -->
+	<context-param>
+		<param-name>replay.plant.process.type</param-name>
+		<param-value>c-process</param-value>
+	</context-param>
+
 </web-app>

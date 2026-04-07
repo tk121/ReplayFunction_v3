@@ -22,6 +22,7 @@ import com.example.app.feature.replay.event.repository.VduOperationCountPerMinut
 import com.example.app.feature.replay.event.service.ReplayEventService;
 import com.example.app.feature.replay.graphic.c.CInvoker;
 import com.example.app.feature.replay.graphic.c.LengthPrefixedSocketCInvoker;
+import com.example.app.feature.replay.graphic.c.PlantJavaSocketInvoker;
 import com.example.app.feature.replay.graphic.c.plant.PlantAcceptedResponse;
 import com.example.app.feature.replay.graphic.c.plant.PlantAsyncRequest;
 import com.example.app.feature.replay.graphic.mapper.AlertLogMapper;
@@ -132,7 +133,8 @@ public class AppInitListener implements ServletContextListener {
     }
 
     /**
-     * Plant 用 非同期 C サーバ invoker を生成します。
+     * Plant 用 非同期サーバ invoker を生成します。
+     * C プロセスまたは Java プロセスを切り替え可能です。
      */
     private CInvoker<PlantAsyncRequest, PlantAcceptedResponse> createPlantAsyncSocketInvoker(
             ServletContext application) {
@@ -144,12 +146,17 @@ public class AppInitListener implements ServletContextListener {
         int readTimeoutMillis = Integer.parseInt(getInitParam(
                 application, "replay.plant.socket.readTimeoutMillis", "3000"));
 
-        return new LengthPrefixedSocketCInvoker<PlantAsyncRequest, PlantAcceptedResponse>(
-                host,
-                port,
-                connectTimeoutMillis,
-                readTimeoutMillis,
-                PlantAcceptedResponse.class);
+        // サーバ種別を判定: "c-process" または "java-process"
+        String processType = getInitParam(application, "replay.plant.process.type", "c-process");
+
+        if ("java-process".equals(processType)) {
+            // Java プロセス用 (JSON通信)
+            return new PlantJavaSocketInvoker(host, port, connectTimeoutMillis, readTimeoutMillis);
+        } else {
+            // C プロセス用 (既存のバイナリ通信)
+            return new LengthPrefixedSocketCInvoker<PlantAsyncRequest, PlantAcceptedResponse>(
+                    host, port, connectTimeoutMillis, readTimeoutMillis, PlantAcceptedResponse.class);
+        }
     }
 
     /**

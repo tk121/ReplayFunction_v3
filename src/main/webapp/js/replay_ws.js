@@ -189,7 +189,7 @@ const renderAvduAlerts = (alerts) => {
  * @param {Object} state - 状態データオブジェクト
  */
 const renderState = (state) => {
-    setText("currentOperator", state.operatorName);
+    setText("currentOperator", state.controllerUserName);
     setText("currentOperatorIp", state.operatorIp);
     setText("playStatus", state.playStatus);
     setText("startDateTimeLabel", state.startDateTime);

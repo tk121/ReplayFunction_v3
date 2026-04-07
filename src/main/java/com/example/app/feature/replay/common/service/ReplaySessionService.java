@@ -79,7 +79,6 @@ public class ReplaySessionService {
 			}
             state.setControllerUserId(loginUser.getUserId());
             state.setControllerUserName(loginUser.getUserName());
-            state.setOperatorName(loginUser.getUserName());
         }
     }
 

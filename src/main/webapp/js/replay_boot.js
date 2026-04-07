@@ -120,7 +120,6 @@ import { connect, fetchCurrentState, renderState } from './replay_ws.js';
             displayHours: Number(displayHours.value),
             unitNo: Number(unitNo.value),
             replayMode: replayMode.value,
-            operatorName: user.userName,
             speed: command === "CHANGE_SPEED" ? validateSpeed() : null
         };
 

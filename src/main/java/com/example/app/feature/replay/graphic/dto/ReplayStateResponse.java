@@ -25,8 +25,6 @@ public class ReplayStateResponse {
     private String roomId;
     private Integer unitNo;
     private String replayMode;
-    private String operatorName;
-
     /** 現在の操作者IP */
     private String operatorIp;
 
@@ -115,9 +113,6 @@ public class ReplayStateResponse {
 
     public String getReplayMode() { return replayMode; }
     public void setReplayMode(String replayMode) { this.replayMode = replayMode; }
-
-    public String getOperatorName() { return operatorName; }
-    public void setOperatorName(String operatorName) { this.operatorName = operatorName; }
 
     public String getOperatorIp() { return operatorIp; }
     public void setOperatorIp(String operatorIp) { this.operatorIp = operatorIp; }

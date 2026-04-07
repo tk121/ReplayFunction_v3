@@ -30,9 +30,6 @@ public class ReplayState {
     private Integer unitNo;
     private ReplayMode replayMode = ReplayMode.HISTORY;
 
-    /** 現在の操作者名 */
-    private String operatorName;
-
     /** 現在の操作者IP */
     private String operatorIp;
     private String playStatus = STATUS_STOPPED;
@@ -113,9 +110,6 @@ public class ReplayState {
 
     public ReplayMode getReplayMode() { return replayMode; }
     public void setReplayMode(ReplayMode replayMode) { this.replayMode = replayMode; }
-
-    public String getOperatorName() { return operatorName; }
-    public void setOperatorName(String operatorName) { this.operatorName = operatorName; }
 
     public String getOperatorIp() { return operatorIp; }
     public void setOperatorIp(String operatorIp) { this.operatorIp = operatorIp; }
