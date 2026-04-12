@@ -1,4 +1,4 @@
-package com.example.app.feature.replay.graphic.c;
+package com.example.app.feature.replay.graphic.external;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -23,7 +23,7 @@ import com.example.app.common.json.JsonUtil;
  * @param <REQ> 送信リクエスト型
  * @param <RES> 受信レスポンス型
  */
-public class LengthPrefixedSocketCInvoker<REQ, RES> implements CInvoker<REQ, RES> {
+public class LengthPrefixedSocketExternalInvoker<REQ, RES> implements ExternalInvoker<REQ, RES> {
 
     /** 接続先ホスト */
     private final String host;
@@ -40,7 +40,7 @@ public class LengthPrefixedSocketCInvoker<REQ, RES> implements CInvoker<REQ, RES
     /** レスポンス型 */
     private final Class<RES> responseClass;
 
-    public LengthPrefixedSocketCInvoker(String host,
+    public LengthPrefixedSocketExternalInvoker(String host,
                                         int port,
                                         int connectTimeoutMillis,
                                         int readTimeoutMillis,
@@ -78,7 +78,7 @@ public class LengthPrefixedSocketCInvoker<REQ, RES> implements CInvoker<REQ, RES
             // response [4byte length][json]
             int responseLength = dis.readInt();
             if (responseLength <= 0) {
-                throw new CInvocationException("C response length is invalid: " + responseLength);
+                throw new ExternalInvocationException("C response length is invalid: " + responseLength);
             }
 
             byte[] responseBytes = new byte[responseLength];
@@ -86,13 +86,13 @@ public class LengthPrefixedSocketCInvoker<REQ, RES> implements CInvoker<REQ, RES
 
             String responseJson = new String(responseBytes, StandardCharsets.UTF_8);
             if (responseJson.trim().length() == 0) {
-                throw new CInvocationException("C response is empty");
+                throw new ExternalInvocationException("C response is empty");
             }
 
             return JsonUtil.readValue(responseJson, responseClass);
 
         } catch (Exception e) {
-            throw new CInvocationException(
+            throw new ExternalInvocationException(
                     "Failed to invoke C socket. host=" + host + ", port=" + port, e);
         } finally {
             if (dis != null) {

@@ -1,4 +1,4 @@
-package com.example.app.feature.replay.graphic.c.replay;
+package com.example.app.feature.replay.graphic.external.replay;
 
 /**
  * Replay 系 C プロセス向けの送信DTO例です。

@@ -4,21 +4,21 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-import com.example.app.feature.replay.graphic.c.CInvoker;
-import com.example.app.feature.replay.graphic.c.plant.PlantAcceptedResponse;
-import com.example.app.feature.replay.graphic.c.plant.PlantAsyncRequest;
-import com.example.app.feature.replay.graphic.c.plant.PlantAsyncRequestItem;
 import com.example.app.feature.replay.graphic.entity.PlantDataLog;
+import com.example.app.feature.replay.graphic.external.ExternalInvoker;
+import com.example.app.feature.replay.graphic.external.plant.PlantAcceptedResponse;
+import com.example.app.feature.replay.graphic.external.plant.PlantAsyncRequest;
+import com.example.app.feature.replay.graphic.external.plant.PlantAsyncRequestItem;
 
 /**
  * plant_data_log を非同期 C サーバへ送るサービスです。
  */
 public class PlantDataProcessService {
 
-    private final CInvoker<PlantAsyncRequest, PlantAcceptedResponse> plantCInvoker;
+    private final ExternalInvoker<PlantAsyncRequest, PlantAcceptedResponse> plantCInvoker;
 
     public PlantDataProcessService(
-            CInvoker<PlantAsyncRequest, PlantAcceptedResponse> plantCInvoker) {
+            ExternalInvoker<PlantAsyncRequest, PlantAcceptedResponse> plantCInvoker) {
         this.plantCInvoker = plantCInvoker;
     }
 

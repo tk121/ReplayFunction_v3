@@ -13,4 +13,4 @@
  * ソケット方式の実装を配置します。
  * </p>
  */
-package com.example.app.feature.replay.graphic.c;
+package com.example.app.feature.replay.graphic.external;

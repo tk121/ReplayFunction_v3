@@ -2,8 +2,8 @@ package com.example.app.feature.replay.graphic.service;
 
 import java.util.List;
 
-import com.example.app.feature.replay.graphic.c.plant.PlantAcceptedResponse;
 import com.example.app.feature.replay.graphic.entity.PlantDataLog;
+import com.example.app.feature.replay.graphic.external.plant.PlantAcceptedResponse;
 
 /**
  * Replay から利用する外部プロセス連携の窓口です。

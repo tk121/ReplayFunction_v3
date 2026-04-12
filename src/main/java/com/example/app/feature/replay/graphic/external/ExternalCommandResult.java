@@ -1,4 +1,4 @@
-package com.example.app.feature.replay.graphic.c;
+package com.example.app.feature.replay.graphic.external;
 
 /**
  * C プロセスから返される結果です。
@@ -9,7 +9,7 @@ package com.example.app.feature.replay.graphic.c;
  * 「イベント適用に成功したかどうか」だけを管理します。
  * </p>
  */
-public class CResult {
+public class ExternalCommandResult {
 
     /** 成功時 true、失敗時 false */
     private boolean success;
@@ -22,8 +22,8 @@ public class CResult {
      *
      * @return success=true の CResult
      */
-    public static CResult success() {
-        CResult result = new CResult();
+    public static ExternalCommandResult success() {
+        ExternalCommandResult result = new ExternalCommandResult();
         result.setSuccess(true);
         return result;
     }
@@ -34,8 +34,8 @@ public class CResult {
      * @param message 失敗メッセージ
      * @return success=false の CResult
      */
-    public static CResult failure(String message) {
-        CResult result = new CResult();
+    public static ExternalCommandResult failure(String message) {
+        ExternalCommandResult result = new ExternalCommandResult();
         result.setSuccess(false);
         result.setMessage(message);
         return result;

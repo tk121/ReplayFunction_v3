@@ -20,11 +20,11 @@ import com.example.app.feature.replay.common.service.ReplaySessionService;
 import com.example.app.feature.replay.event.repository.AlertCountPerMinuteRepository;
 import com.example.app.feature.replay.event.repository.VduOperationCountPerMinuteRepository;
 import com.example.app.feature.replay.event.service.ReplayEventService;
-import com.example.app.feature.replay.graphic.c.CInvoker;
-import com.example.app.feature.replay.graphic.c.LengthPrefixedSocketCInvoker;
-import com.example.app.feature.replay.graphic.c.PlantJavaSocketInvoker;
-import com.example.app.feature.replay.graphic.c.plant.PlantAcceptedResponse;
-import com.example.app.feature.replay.graphic.c.plant.PlantAsyncRequest;
+import com.example.app.feature.replay.graphic.external.ExternalInvoker;
+import com.example.app.feature.replay.graphic.external.LengthPrefixedSocketExternalInvoker;
+import com.example.app.feature.replay.graphic.external.PlantJavaSocketInvoker;
+import com.example.app.feature.replay.graphic.external.plant.PlantAcceptedResponse;
+import com.example.app.feature.replay.graphic.external.plant.PlantAsyncRequest;
 import com.example.app.feature.replay.graphic.mapper.AlertLogMapper;
 import com.example.app.feature.replay.graphic.mapper.OperationLogMapper;
 import com.example.app.feature.replay.graphic.repository.AlertLogRepository;
@@ -67,7 +67,7 @@ public class AppInitListener implements ServletContextListener {
             AlertLogMapper alertLogMapper = new AlertLogMapper();
 
             // Plant 用 非同期 C サーバ invoker
-            CInvoker<PlantAsyncRequest, PlantAcceptedResponse> plantCInvoker =
+            ExternalInvoker<PlantAsyncRequest, PlantAcceptedResponse> plantCInvoker =
                     createPlantAsyncSocketInvoker(application);
 
             // Plant 送信サービス
@@ -136,7 +136,7 @@ public class AppInitListener implements ServletContextListener {
      * Plant 用 非同期サーバ invoker を生成します。
      * C プロセスまたは Java プロセスを切り替え可能です。
      */
-    private CInvoker<PlantAsyncRequest, PlantAcceptedResponse> createPlantAsyncSocketInvoker(
+    private ExternalInvoker<PlantAsyncRequest, PlantAcceptedResponse> createPlantAsyncSocketInvoker(
             ServletContext application) {
 
         String host = getInitParam(application, "replay.plant.socket.host", "127.0.0.1");
@@ -154,7 +154,7 @@ public class AppInitListener implements ServletContextListener {
             return new PlantJavaSocketInvoker(host, port, connectTimeoutMillis, readTimeoutMillis);
         } else {
             // C プロセス用 (既存のバイナリ通信)
-            return new LengthPrefixedSocketCInvoker<PlantAsyncRequest, PlantAcceptedResponse>(
+            return new LengthPrefixedSocketExternalInvoker<PlantAsyncRequest, PlantAcceptedResponse>(
                     host, port, connectTimeoutMillis, readTimeoutMillis, PlantAcceptedResponse.class);
         }
     }

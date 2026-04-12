@@ -1,4 +1,4 @@
-package com.example.app.feature.replay.graphic.c;
+package com.example.app.feature.replay.graphic.external;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -15,13 +15,13 @@ import com.example.app.common.json.JsonUtil;
  * @param <REQ> 送信リクエスト型
  * @param <RES> 受信レスポンス型
  */
-public class ProcessBuilderCInvoker<REQ, RES> implements CInvoker<REQ, RES> {
+public class ProcessBuilderExternalInvoker<REQ, RES> implements ExternalInvoker<REQ, RES> {
 
     private final String commandPath;
     private final long timeoutMillis;
     private final Class<RES> responseClass;
 
-    public ProcessBuilderCInvoker(String commandPath, long timeoutMillis, Class<RES> responseClass) {
+    public ProcessBuilderExternalInvoker(String commandPath, long timeoutMillis, Class<RES> responseClass) {
         this.commandPath = commandPath;
         this.timeoutMillis = timeoutMillis;
         this.responseClass = responseClass;

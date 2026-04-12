@@ -1,7 +1,7 @@
 package com.example.app.feature.replay.graphic.mapper;
 
-import com.example.app.feature.replay.graphic.c.CRequest;
 import com.example.app.feature.replay.graphic.entity.OperationLog;
+import com.example.app.feature.replay.graphic.external.ExternalCommandRequest;
 import com.example.app.feature.replay.graphic.model.ReplayOperationEvent;
 
 /**
@@ -14,8 +14,8 @@ import com.example.app.feature.replay.graphic.model.ReplayOperationEvent;
 public class OperationLogMapper {
 
 	
-    public CRequest toCRequest(ReplayOperationEvent event) {
-        CRequest request = new CRequest();
+    public ExternalCommandRequest toCRequest(ReplayOperationEvent event) {
+        ExternalCommandRequest request = new ExternalCommandRequest();
 
         request.setEventType(event.getActionType());
         request.setPageId(event.getPageId());

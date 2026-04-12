@@ -1,4 +1,4 @@
-package com.example.app.feature.replay.graphic.c;
+package com.example.app.feature.replay.graphic.external;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -8,9 +8,9 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 
+import com.example.app.feature.replay.graphic.external.plant.PlantAcceptedResponse;
+import com.example.app.feature.replay.graphic.external.plant.PlantAsyncRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.example.app.feature.replay.graphic.c.plant.PlantAcceptedResponse;
-import com.example.app.feature.replay.graphic.c.plant.PlantAsyncRequest;
 
 /**
  * Java プロセスの Plant サーバへ Socket 通信で接続する実装です。
@@ -20,7 +20,7 @@ import com.example.app.feature.replay.graphic.c.plant.PlantAsyncRequest;
  * 改行区切りのテキストプロトコルを使用します。
  * </p>
  */
-public class PlantJavaSocketInvoker implements CInvoker<PlantAsyncRequest, PlantAcceptedResponse> {
+public class PlantJavaSocketInvoker implements ExternalInvoker<PlantAsyncRequest, PlantAcceptedResponse> {
 
     private final String host;
     private final int port;

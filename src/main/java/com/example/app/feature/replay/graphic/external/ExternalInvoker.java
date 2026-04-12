@@ -1,4 +1,4 @@
-package com.example.app.feature.replay.graphic.c;
+package com.example.app.feature.replay.graphic.external;
 
 /**
  * C プロセス呼び出しインターフェースです。
@@ -11,7 +11,7 @@ package com.example.app.feature.replay.graphic.c;
  * @param <REQ> 送信リクエスト型
  * @param <RES> 受信レスポンス型
  */
-public interface CInvoker<REQ, RES> {
+public interface ExternalInvoker<REQ, RES> {
 
     /**
      * C プロセスへ依頼を送信して応答を受け取ります。

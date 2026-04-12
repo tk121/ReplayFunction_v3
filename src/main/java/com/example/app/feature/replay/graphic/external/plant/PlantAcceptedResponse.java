@@ -1,4 +1,4 @@
-package com.example.app.feature.replay.graphic.c.plant;
+package com.example.app.feature.replay.graphic.external.plant;
 
 /**
  * Plant 用の非同期受付応答です。

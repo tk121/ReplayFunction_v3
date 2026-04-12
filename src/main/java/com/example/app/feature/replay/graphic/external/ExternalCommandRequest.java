@@ -1,4 +1,4 @@
-package com.example.app.feature.replay.graphic.c;
+package com.example.app.feature.replay.graphic.external;
 
 /**
  * C プロセスへ渡す入力データです。
@@ -7,7 +7,7 @@ package com.example.app.feature.replay.graphic.c;
  * event_log の1イベントを C 側へ適用させるための JSON 変換元オブジェクトです。
  * </p>
  */
-public class CRequest {
+public class ExternalCommandRequest {
 
     /** イベント種別（OPEN / CLICK / INPUT） */
     private String eventType;
