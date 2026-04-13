@@ -74,7 +74,7 @@ public class ReplayWsEndpoint {
 			AppRuntime.getReplayWsHub().register(client);
 
 			ReplayState state = AppRuntime.getReplaySessionService().getState(roomId);
-			AppRuntime.getReplayCoordinator().prepareCurrentDisplayState(state, clientType);
+			AppRuntime.getReplayCoordinator().prepareDisplayStateForClient(state, clientType);
 			AppRuntime.getReplayWsHub().sendCurrentState(client, state, AppRuntime.getReplayResponseService());
 
 		} catch (Exception e) {

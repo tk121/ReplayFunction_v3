@@ -123,7 +123,7 @@ public class ReplayEngine {
                     }
 
                     // 既存 replay 処理
-                    replayCoordinator.applyReplayWindow(state, current, next);
+                    replayCoordinator.applyReplayRange(state, current, next);
 
                     // 再生時刻を更新
                     state.setCurrentReplayTime(next);

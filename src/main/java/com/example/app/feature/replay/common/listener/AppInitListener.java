@@ -1,5 +1,7 @@
 package com.example.app.feature.replay.common.listener;
 
+import java.util.List;
+
 import javax.servlet.ServletContext;
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
@@ -15,6 +17,13 @@ import com.example.app.feature.auth.repository.UserRepository;
 import com.example.app.feature.auth.service.AuthService;
 import com.example.app.feature.replay.common.controller.ws.WsHub;
 import com.example.app.feature.replay.common.engine.ReplayEngine;
+import com.example.app.feature.replay.common.process.ExternalProcessConfigLoader;
+import com.example.app.feature.replay.common.process.ExternalProcessDefinition;
+import com.example.app.feature.replay.common.process.ExternalProcessHandle;
+import com.example.app.feature.replay.common.process.ExternalProcessManager;
+import com.example.app.feature.replay.common.processclient.ExternalClientPool;
+import com.example.app.feature.replay.common.processclient.ExternalClientPoolFactory;
+import com.example.app.feature.replay.common.processclient.ExternalInvokerAdapter;
 import com.example.app.feature.replay.common.service.ReplayResponseService;
 import com.example.app.feature.replay.common.service.ReplaySessionService;
 import com.example.app.feature.replay.event.repository.AlertCountPerMinuteRepository;
@@ -41,6 +50,8 @@ import com.example.app.feature.replay.graphic.service.ReplayExternalProcessServi
 public class AppInitListener implements ServletContextListener {
 
     private static final Logger log = LoggerFactory.getLogger(AppInitListener.class);
+    
+    private ExternalProcessManager externalProcessManager;
 
     @Override
     public void contextInitialized(ServletContextEvent sce) {
@@ -65,18 +76,41 @@ public class AppInitListener implements ServletContextListener {
 
             OperationLogMapper operationMapper = new OperationLogMapper();
             AlertLogMapper alertLogMapper = new AlertLogMapper();
+            
+         // 外部常駐プロセス起動
+            externalProcessManager = new ExternalProcessManager();
+            ExternalProcessConfigLoader configLoader = new ExternalProcessConfigLoader();
+            List<ExternalProcessDefinition> definitions = configLoader.load(application);
+            externalProcessManager.startAll(definitions);
+            
+            // graphic 用 pool 作成
+            List<ExternalProcessHandle> graphicHandles =
+                    externalProcessManager.getHandlesByName("graphic");
 
-            // Plant 用 非同期 C サーバ invoker
-            ExternalInvoker<PlantAsyncRequest, PlantAcceptedResponse> plantCInvoker =
-                    createPlantAsyncSocketInvoker(application);
+            ExternalClientPoolFactory poolFactory = new ExternalClientPoolFactory();
+            ExternalClientPool<PlantAsyncRequest, PlantAcceptedResponse> graphicPool =
+                    poolFactory.createPool(
+                            graphicHandles,
+                            PlantAcceptedResponse.class,
+                            parseInt(getInitParam(application,
+                                    "process.graphic.connectTimeoutMillis", "3000"), 3000),
+                            parseInt(getInitParam(application,
+                                    "process.graphic.readTimeoutMillis", "3000"), 3000));
 
-            // Plant 送信サービス
+            // 既存サービスへ合わせるため Adapter 化
+            ExternalInvoker<PlantAsyncRequest, PlantAcceptedResponse> plantInvoker =
+                    new ExternalInvokerAdapter<PlantAsyncRequest, PlantAcceptedResponse>(graphicPool);
+            
             PlantDataProcessService plantDataProcessService =
-                    new PlantDataProcessService(plantCInvoker);
+                    new PlantDataProcessService(plantInvoker);
 
-            // 外部 C プロセス連携の集約窓口
             ReplayExternalProcessService externalProcessService =
                     new ReplayExternalProcessService(plantDataProcessService);
+
+            // Plant 送信サービス
+//            PlantDataProcessService plantDataProcessService =
+//                    new PlantDataProcessService(plantCInvoker);
+
 
             // event 集計済みテーブル用サービス
             ReplayEventService eventService = new ReplayEventService(
@@ -168,5 +202,13 @@ public class AppInitListener implements ServletContextListener {
             return defaultValue;
         }
         return value.trim();
+    }
+
+    private int parseInt(String value, int defaultValue) {
+        try {
+            return Integer.parseInt(value);
+        } catch (Exception e) {
+            return defaultValue;
+        }
     }
 }

@@ -32,5 +32,71 @@
 		<param-name>replay.plant.process.type</param-name>
 		<param-value>c-process</param-value>
 	</context-param>
+	
+	<context-param>
+    <param-name>process.enabled</param-name>
+    <param-value>true</param-value>
+</context-param>
+
+<context-param>
+    <param-name>process.definitions</param-name>
+    <param-value>graphic,trend</param-value>
+</context-param>
+
+<!-- graphic -->
+<context-param>
+    <param-name>process.graphic.transport</param-name>
+    <param-value>socket</param-value>
+</context-param>
+<context-param>
+    <param-name>process.graphic.jar</param-name>
+    <param-value>/opt/myapp/bin/graphic-server.jar</param-value>
+</context-param>
+<context-param>
+    <param-name>process.graphic.count</param-name>
+    <param-value>3</param-value>
+</context-param>
+<context-param>
+    <param-name>process.graphic.host</param-name>
+    <param-value>127.0.0.1</param-value>
+</context-param>
+<context-param>
+    <param-name>process.graphic.port.start</param-name>
+    <param-value>5100</param-value>
+</context-param>
+<context-param>
+    <param-name>process.graphic.jvmOpts</param-name>
+    <param-value>-Xms128m -Xmx256m</param-value>
+</context-param>
+<context-param>
+    <param-name>process.graphic.args</param-name>
+    <param-value>--mode=graphic</param-value>
+</context-param>
+
+<!-- trend -->
+<context-param>
+    <param-name>process.trend.transport</param-name>
+    <param-value>fifo</param-value>
+</context-param>
+<context-param>
+    <param-name>process.trend.jar</param-name>
+    <param-value>/opt/myapp/bin/trend-server.jar</param-value>
+</context-param>
+<context-param>
+    <param-name>process.trend.count</param-name>
+    <param-value>2</param-value>
+</context-param>
+<context-param>
+    <param-name>process.trend.fifo.dir</param-name>
+    <param-value>/tmp/replay/trend</param-value>
+</context-param>
+<context-param>
+    <param-name>process.trend.jvmOpts</param-name>
+    <param-value>-Xms128m -Xmx256m</param-value>
+</context-param>
+<context-param>
+    <param-name>process.trend.args</param-name>
+    <param-value>--mode=trend</param-value>
+</context-param>
 
 </web-app>
