@@ -1,7 +1,6 @@
 package com.example.app.feature.replay.graphic.mapper;
 
 import com.example.app.feature.replay.graphic.entity.OperationLog;
-import com.example.app.feature.replay.graphic.external.ExternalCommandRequest;
 import com.example.app.feature.replay.graphic.model.ReplayOperationEvent;
 
 /**
@@ -12,19 +11,6 @@ import com.example.app.feature.replay.graphic.model.ReplayOperationEvent;
  * </p>
  */
 public class OperationLogMapper {
-
-	
-    public ExternalCommandRequest toCRequest(ReplayOperationEvent event) {
-        ExternalCommandRequest request = new ExternalCommandRequest();
-
-        request.setEventType(event.getActionType());
-        request.setPageId(event.getPageId());
-        request.setControlId(event.getControlId());
-        request.setSymbolId(event.getButtonId());
-        request.setValue(event.getValue());
-
-        return request;
-    }
     
     public ReplayOperationEvent toReplayOperationEvent(OperationLog row) {
         ReplayOperationEvent event = new ReplayOperationEvent();

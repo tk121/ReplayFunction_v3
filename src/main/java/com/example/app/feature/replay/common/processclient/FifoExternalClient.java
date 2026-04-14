@@ -26,7 +26,7 @@ public class FifoExternalClient<REQ, RES> implements ExternalClient<REQ, RES> {
 
     @Override
     public RES send(REQ request) throws Exception {
-        String requestJson = JsonUtil.writeValue(request);
+        String requestJson = JsonUtil.writeValueAsString(request);
 
         BufferedWriter writer = null;
         BufferedReader reader = null;

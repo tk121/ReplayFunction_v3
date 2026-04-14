@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.example.app.feature.auth.model.LoginUser;
+import com.example.app.feature.replay.common.constant.ReplayControlCommand;
 import com.example.app.feature.replay.common.controller.ws.WsClient;
 import com.example.app.feature.replay.common.controller.ws.WsHub;
 import com.example.app.feature.replay.common.model.ReplayMode;
@@ -18,6 +19,8 @@ import com.example.app.feature.replay.common.service.ReplaySessionService;
 import com.example.app.feature.replay.event.service.ReplayEventService;
 import com.example.app.feature.replay.graphic.dto.ReplayControlRequest;
 import com.example.app.feature.replay.graphic.dto.ReplayStateResponse;
+import com.example.app.feature.replay.graphic.dto.external.GraphicProcessResponse;
+import com.example.app.feature.replay.graphic.dto.external.TrendProcessResponse;
 import com.example.app.feature.replay.graphic.entity.AlertLog;
 import com.example.app.feature.replay.graphic.entity.OperationLog;
 import com.example.app.feature.replay.graphic.entity.PlantDataLog;
@@ -71,7 +74,7 @@ public class ReplayCoordinator {
 	/** alert_log → ReplayAvduAlert 変換用 Mapper */
 	private final AlertLogMapper alertLogMapper;
 
-	/** 外部 C プロセス連携の窓口 */
+	/** 外部プロセス連携の窓口 */
 	private final ReplayExternalProcessService externalProcessService;
 
 	/** event 集計済みデータ取得サービス */
@@ -120,14 +123,15 @@ public class ReplayCoordinator {
 		sessionService.assertCanOperate(state, loginUser);
 		sessionService.applySharedFields(state, req, remoteIp);
 
-		String command = normalizeCommand(req.getCommand());
+		ReplayControlCommand command = normalizeCommand(req.getCommand());
 
 		synchronized (state) {
-			if (state.getReplayMode() == ReplayMode.REALTIME && !"APPLY_CONDITION".equals(command)) {
+			if (state.getReplayMode() == ReplayMode.REALTIME && command != ReplayControlCommand.APPLY_CONDITION) {
 				throw new IllegalStateException("リアルタイム再生では再生制御ボタンは使用できません");
 			}
 
-			if ("APPLY_CONDITION".equals(command)) {
+			switch (command) {
+			case APPLY_CONDITION:
 				state.setPlayStatus(ReplayState.STATUS_STOPPED);
 				state.setSpeed(1);
 
@@ -139,7 +143,9 @@ public class ReplayCoordinator {
 				rebuildStateAt(state);
 				replayEventService.loadAndStoreForState(state);
 
-			} else if ("PLAY".equals(command)) {
+				break;
+
+			case PLAY:
 				state.setPlayStatus(ReplayState.STATUS_PLAYING);
 
 				if (state.getCurrentReplayTime() == null) {
@@ -149,34 +155,39 @@ public class ReplayCoordinator {
 				if (state.getSpeed() <= 0) {
 					state.setSpeed(1);
 				}
+				break;
 
-			} else if ("STOP".equals(command)) {
+			case STOP:
 				state.setPlayStatus(ReplayState.STATUS_STOPPED);
+				break;
 
-			} else if ("CHANGE_SPEED".equals(command)) {
+			case CHANGE_SPEED:
 				int requestedSpeed = normalizeSpeed(req.getSpeed());
 				state.setSpeed(requestedSpeed);
+				break;
 
-			} else if ("GO_HEAD".equals(command)) {
+			case GO_HEAD:
 				state.setPlayStatus(ReplayState.STATUS_STOPPED);
 				state.setSpeed(1);
 				state.setCurrentReplayTime(state.getStartDateTime());
 
 				rebuildStateAt(state);
+				break;
 
-			} else if ("GO_TAIL".equals(command)) {
+			case GO_TAIL:
 				state.setPlayStatus(ReplayState.STATUS_STOPPED);
 				state.setSpeed(1);
 
 				LocalDateTime tail = sessionService.calcTailDateTime(state, req.getDisplayHours().intValue());
 				state.setCurrentReplayTime(tail);
 				rebuildStateAt(state);
+				break;
 
-			} else {
+			default:
 				throw new IllegalArgumentException("未対応コマンドです: " + command);
 			}
 
-			state.setLastCommand(command);
+			state.setLastCommand(command.name());
 		}
 
 		wsHub.broadcast(state, responseService);
@@ -313,7 +324,7 @@ public class ReplayCoordinator {
 				replayTime);
 
 		try {
-			externalProcessService.submitPlantData(plantRows);
+			//			externalProcessService.submitPlantData(plantRows);
 		} catch (Exception e) {
 			throw new RuntimeException("Failed to submit plant data to external process", e);
 		}
@@ -326,14 +337,28 @@ public class ReplayCoordinator {
 			return;
 		}
 
+		GraphicProcessResponse graphicResponse = externalProcessService.executeGraphic("REPLAY",
+				toInclusive.toString());
+
+		if (!graphicResponse.isSuccess()) {
+			throw new IllegalStateException(
+					"Graphic process failed. message=" + graphicResponse.getMessage());
+		}
+		TrendProcessResponse trendResponse = externalProcessService.executeTrend("REPLAY", toInclusive.toString());
+
+		if (!trendResponse.isSuccess()) {
+			throw new IllegalStateException(
+					"Trend process failed. message=" + trendResponse.getMessage());
+		}
+
 		//        List<PlantDataLog> plantRows =
 		//                plantDataLogRepository.findByUnitNoAndOccurredAtRange(state.getUnitNo(), replayTime);
 
-//		try {
-//			externalProcessService.submitPlantData(plantRows);
-//		} catch (Exception e) {
-//			throw new RuntimeException("Failed to submit plant data to external process", e);
-//		}
+		//		try {
+		//			externalProcessService.submitPlantData(plantRows);
+		//		} catch (Exception e) {
+		//			throw new RuntimeException("Failed to submit plant data to external process", e);
+		//		}
 	}
 
 	private void rebuildAvduStateAt(ReplayState state, LocalDateTime replayTime) throws Exception {
@@ -391,11 +416,19 @@ public class ReplayCoordinator {
 		return true;
 	}
 
-	private String normalizeCommand(String command) {
-		if (command == null || command.trim().length() == 0) {
-			return "APPLY_CONDITION";
+	//	private String normalizeCommand(String command) {
+	//		if (command == null || command.trim().length() == 0) {
+	//			return "APPLY_CONDITION";
+	//		}
+	//		return command.trim();
+	//	}
+
+	private ReplayControlCommand normalizeCommand(String command) {
+		try {
+			return ReplayControlCommand.from(command);
+		} catch (IllegalArgumentException e) {
+			throw new IllegalArgumentException("未対応コマンドです: " + command, e);
 		}
-		return command.trim();
 	}
 
 	private int normalizeSpeed(Integer speed) {

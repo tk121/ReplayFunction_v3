@@ -41,7 +41,7 @@ public class SocketExternalClient<REQ, RES> implements ExternalClient<REQ, RES> 
             BufferedReader reader = new BufferedReader(
                     new InputStreamReader(socket.getInputStream(), "UTF-8"));
 
-            String requestJson = JsonUtil.writeValue(request);
+            String requestJson = JsonUtil.writeValueAsString(request);
             writer.write(requestJson);
             writer.newLine();
             writer.flush();

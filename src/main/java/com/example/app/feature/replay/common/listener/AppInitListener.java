@@ -23,34 +23,30 @@ import com.example.app.feature.replay.common.process.ExternalProcessHandle;
 import com.example.app.feature.replay.common.process.ExternalProcessManager;
 import com.example.app.feature.replay.common.processclient.ExternalClientPool;
 import com.example.app.feature.replay.common.processclient.ExternalClientPoolFactory;
-import com.example.app.feature.replay.common.processclient.ExternalInvokerAdapter;
 import com.example.app.feature.replay.common.service.ReplayResponseService;
 import com.example.app.feature.replay.common.service.ReplaySessionService;
 import com.example.app.feature.replay.event.repository.AlertCountPerMinuteRepository;
 import com.example.app.feature.replay.event.repository.VduOperationCountPerMinuteRepository;
 import com.example.app.feature.replay.event.service.ReplayEventService;
-import com.example.app.feature.replay.graphic.external.ExternalInvoker;
-import com.example.app.feature.replay.graphic.external.LengthPrefixedSocketExternalInvoker;
-import com.example.app.feature.replay.graphic.external.PlantJavaSocketInvoker;
-import com.example.app.feature.replay.graphic.external.plant.PlantAcceptedResponse;
-import com.example.app.feature.replay.graphic.external.plant.PlantAsyncRequest;
+import com.example.app.feature.replay.graphic.dto.external.GraphicProcessRequest;
+import com.example.app.feature.replay.graphic.dto.external.GraphicProcessResponse;
+import com.example.app.feature.replay.graphic.dto.external.TrendProcessRequest;
+import com.example.app.feature.replay.graphic.dto.external.TrendProcessResponse;
 import com.example.app.feature.replay.graphic.mapper.AlertLogMapper;
 import com.example.app.feature.replay.graphic.mapper.OperationLogMapper;
 import com.example.app.feature.replay.graphic.repository.AlertLogRepository;
 import com.example.app.feature.replay.graphic.repository.OperationLogRepository;
 import com.example.app.feature.replay.graphic.repository.PlantDataLogRepository;
-import com.example.app.feature.replay.graphic.service.PlantDataProcessService;
+import com.example.app.feature.replay.graphic.service.GraphicProcessService;
 import com.example.app.feature.replay.graphic.service.ReplayCoordinator;
 import com.example.app.feature.replay.graphic.service.ReplayExternalProcessService;
+import com.example.app.feature.replay.graphic.service.TrendProcessService;
 
-/**
- * アプリ起動・終了時の初期化処理を行う Listener です。
- */
 @WebListener
 public class AppInitListener implements ServletContextListener {
 
     private static final Logger log = LoggerFactory.getLogger(AppInitListener.class);
-    
+
     private ExternalProcessManager externalProcessManager;
 
     @Override
@@ -60,13 +56,13 @@ public class AppInitListener implements ServletContextListener {
 
             ServletContext application = sce.getServletContext();
 
-            // JNDI から DataSource を取得
             String jndi = getInitParam(application, "replay.jndi", "java:comp/env/jdbc/mydb");
             DataSource ds = DataSourceProvider.lookup(jndi);
 
             WsHub wsHub = new WsHub();
             ReplaySessionService sessionService = new ReplaySessionService();
             ReplayResponseService responseService = new ReplayResponseService(sessionService);
+
             UserRepository userRepository = new UserRepository(ds);
             AuthService authService = new AuthService(userRepository);
 
@@ -76,43 +72,74 @@ public class AppInitListener implements ServletContextListener {
 
             OperationLogMapper operationMapper = new OperationLogMapper();
             AlertLogMapper alertLogMapper = new AlertLogMapper();
-            
-         // 外部常駐プロセス起動
+
+            // 外部常駐プロセス起動
             externalProcessManager = new ExternalProcessManager();
             ExternalProcessConfigLoader configLoader = new ExternalProcessConfigLoader();
             List<ExternalProcessDefinition> definitions = configLoader.load(application);
             externalProcessManager.startAll(definitions);
-            
-            // graphic 用 pool 作成
+
+            // graphic 用ハンドル取得
             List<ExternalProcessHandle> graphicHandles =
                     externalProcessManager.getHandlesByName("graphic");
 
+            if (graphicHandles == null || graphicHandles.isEmpty()) {
+                throw new IllegalStateException(
+                        "No external process handles found for 'graphic'. "
+                        + "Check process.enabled / process.definitions / process.graphic.* settings.");
+            }
+
+            // trend 用ハンドル取得
+            List<ExternalProcessHandle> trendHandles =
+                    externalProcessManager.getHandlesByName("trend");
+
+            if (trendHandles == null || trendHandles.isEmpty()) {
+                throw new IllegalStateException(
+                        "No external process handles found for 'trend'. "
+                        + "Check process.enabled / process.definitions / process.trend.* settings.");
+            }
+
             ExternalClientPoolFactory poolFactory = new ExternalClientPoolFactory();
-            ExternalClientPool<PlantAsyncRequest, PlantAcceptedResponse> graphicPool =
+
+            // graphic 用 pool
+            ExternalClientPool<GraphicProcessRequest, GraphicProcessResponse> graphicPool =
                     poolFactory.createPool(
                             graphicHandles,
-                            PlantAcceptedResponse.class,
-                            parseInt(getInitParam(application,
-                                    "process.graphic.connectTimeoutMillis", "3000"), 3000),
-                            parseInt(getInitParam(application,
-                                    "process.graphic.readTimeoutMillis", "3000"), 3000));
+                            GraphicProcessResponse.class,
+                            parseInt(getInitParam(
+                                    application,
+                                    "process.graphic.connectTimeoutMillis",
+                                    "3000"), 3000),
+                            parseInt(getInitParam(
+                                    application,
+                                    "process.graphic.readTimeoutMillis",
+                                    "3000"), 3000));
 
-            // 既存サービスへ合わせるため Adapter 化
-            ExternalInvoker<PlantAsyncRequest, PlantAcceptedResponse> plantInvoker =
-                    new ExternalInvokerAdapter<PlantAsyncRequest, PlantAcceptedResponse>(graphicPool);
-            
-            PlantDataProcessService plantDataProcessService =
-                    new PlantDataProcessService(plantInvoker);
+            // trend 用 pool
+            ExternalClientPool<TrendProcessRequest, TrendProcessResponse> trendPool =
+                    poolFactory.createPool(
+                            trendHandles,
+                            TrendProcessResponse.class,
+                            parseInt(getInitParam(
+                                    application,
+                                    "process.trend.connectTimeoutMillis",
+                                    "3000"), 3000),
+                            parseInt(getInitParam(
+                                    application,
+                                    "process.trend.readTimeoutMillis",
+                                    "3000"), 3000));
+
+            GraphicProcessService graphicProcessService =
+                    new GraphicProcessService(graphicPool);
+
+            TrendProcessService trendProcessService =
+                    new TrendProcessService(trendPool);
 
             ReplayExternalProcessService externalProcessService =
-                    new ReplayExternalProcessService(plantDataProcessService);
+                    new ReplayExternalProcessService(
+                            graphicProcessService,
+                            trendProcessService);
 
-            // Plant 送信サービス
-//            PlantDataProcessService plantDataProcessService =
-//                    new PlantDataProcessService(plantCInvoker);
-
-
-            // event 集計済みテーブル用サービス
             ReplayEventService eventService = new ReplayEventService(
                     sessionService,
                     new VduOperationCountPerMinuteRepository(ds),
@@ -151,6 +178,15 @@ public class AppInitListener implements ServletContextListener {
 
         } catch (Exception e) {
             log.error("AppInitListener failed", e);
+
+            try {
+                if (externalProcessManager != null) {
+                    externalProcessManager.shutdownAll();
+                }
+            } catch (Exception shutdownEx) {
+                log.warn("Failed to shutdown external processes after init error", shutdownEx);
+            }
+
             throw new RuntimeException("AppInitListener failed: " + e.getMessage(), e);
         }
     }
@@ -162,40 +198,18 @@ public class AppInitListener implements ServletContextListener {
                 AppRuntime.getReplayEngine().shutdown();
             }
         } catch (Exception e) {
-            // 必要ならログ出力
+            log.warn("Failed to shutdown ReplayEngine", e);
+        }
+
+        try {
+            if (externalProcessManager != null) {
+                externalProcessManager.shutdownAll();
+            }
+        } catch (Exception e) {
+            log.warn("Failed to shutdown external processes", e);
         }
     }
 
-    /**
-     * Plant 用 非同期サーバ invoker を生成します。
-     * C プロセスまたは Java プロセスを切り替え可能です。
-     */
-    private ExternalInvoker<PlantAsyncRequest, PlantAcceptedResponse> createPlantAsyncSocketInvoker(
-            ServletContext application) {
-
-        String host = getInitParam(application, "replay.plant.socket.host", "127.0.0.1");
-        int port = Integer.parseInt(getInitParam(application, "replay.plant.socket.port", "5000"));
-        int connectTimeoutMillis = Integer.parseInt(getInitParam(
-                application, "replay.plant.socket.connectTimeoutMillis", "3000"));
-        int readTimeoutMillis = Integer.parseInt(getInitParam(
-                application, "replay.plant.socket.readTimeoutMillis", "3000"));
-
-        // サーバ種別を判定: "c-process" または "java-process"
-        String processType = getInitParam(application, "replay.plant.process.type", "c-process");
-
-        if ("java-process".equals(processType)) {
-            // Java プロセス用 (JSON通信)
-            return new PlantJavaSocketInvoker(host, port, connectTimeoutMillis, readTimeoutMillis);
-        } else {
-            // C プロセス用 (既存のバイナリ通信)
-            return new LengthPrefixedSocketExternalInvoker<PlantAsyncRequest, PlantAcceptedResponse>(
-                    host, port, connectTimeoutMillis, readTimeoutMillis, PlantAcceptedResponse.class);
-        }
-    }
-
-    /**
-     * web.xml などの init-param を取得します。
-     */
     private String getInitParam(ServletContext application, String key, String defaultValue) {
         String value = application.getInitParameter(key);
         if (value == null || value.trim().length() == 0) {
