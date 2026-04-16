@@ -7,7 +7,7 @@
 let ws = null;
 // 再接続タイマー
 let reconnectTimer = null;
-//                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   現在のルームID
+//                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  現在のルームID
 let currentRoomId = null;
 // 現在のクライアントタイプ（EVENT, VDU, AVDUなど）
 let currentClientType = null;
@@ -46,6 +46,14 @@ const setText = (id, value) => {
 const setDisabled = (id, disabled) => {
     const el = getById(id);
     if (el) el.disabled = !!disabled;
+};
+
+/**
+ * ページの basePath を取得するユーティリティ
+ */
+const getBasePath = () => {
+    const idx = location.pathname.lastIndexOf("/");
+    return idx >= 0 ? location.pathname.substring(0, idx) : "";
 };
 
 /**
@@ -111,8 +119,24 @@ const connect = (roomId, clientType, vduNo, clientId) => {
     currentVduNo = vduNo || "";
     currentClientId = clientId || "";
 
+    // 既存の接続があればクローズしてリスナーを外す（重複接続を防ぐ）
+    if (ws) {
+        try {
+            ws.onopen = null;
+            ws.onmessage = null;
+            ws.onclose = null;
+            ws.onerror = null;
+            if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+                ws.close(1000, 'replaced');
+            }
+        } catch (e) {
+            console.warn('Error while closing existing ws', e);
+        }
+        ws = null;
+    }
+
     const protocol = location.protocol === "https:" ? "wss:" : "ws:";
-    const basePath = location.pathname.substring(0, location.pathname.lastIndexOf("/"));
+    const basePath = getBasePath();
     const url = `${protocol}//${location.host}${basePath}/ws/replay?roomId=${encodeURIComponent(currentRoomId)}&clientType=${encodeURIComponent(currentClientType)}&vduNo=${encodeURIComponent(currentVduNo)}&clientId=${encodeURIComponent(currentClientId)}`;
     ws = new WebSocket(url);
 
@@ -123,12 +147,18 @@ const connect = (roomId, clientType, vduNo, clientId) => {
     };
 
     ws.onmessage = (event) => {
-        renderState(JSON.parse(event.data));
+        // メッセージはJSONを想定するため、パースエラーはキャッチしてログに出す
+        try {
+            const data = JSON.parse(event.data);
+            renderState(data);
+        } catch (e) {
+            console.error("Replay WebSocket: invalid message received", e, event.data);
+        }
     };
 
     ws.onclose = (event) => {
-        console.warn("Replay WebSocket closed.", event.code, event.reason);
-        if (event.code !== 1000) {
+        console.warn("Replay WebSocket closed.", event && event.code, event && event.reason);
+        if (event && event.code !== 1000) {
             scheduleReconnect();
         }
     };
@@ -139,6 +169,18 @@ const connect = (roomId, clientType, vduNo, clientId) => {
     };
 };
 
+// ページアンロード時のクリーンアップ
+window.addEventListener('beforeunload', () => {
+    try {
+        if (ws) {
+            ws.close(1000, 'unload');
+        }
+    } catch (e) {
+        // noop
+    }
+    clearReconnectTimer();
+});
+
 /**
  * 現在の状態をサーバーから取得する
  * @param {string} clientType - クライアントタイプ
@@ -146,7 +188,8 @@ const connect = (roomId, clientType, vduNo, clientId) => {
  * @param {string} clientId - クライアントID
  */
 const fetchCurrentState = (clientType, vduNo, clientId) => {
-    fetch(`ReplayFunction/replay/state?roomId=replayMode&clientType=${encodeURIComponent(clientType || "EVENT")}&vduNo=${encodeURIComponent(vduNo || 0)}&clientId=${encodeURIComponent(clientId || "")}`, { method: "GET" })
+    const basePath = getBasePath();
+    fetch(`${location.origin}${basePath}/replay/state?roomId=replayMode&clientType=${encodeURIComponent(clientType || "EVENT")}&vduNo=${encodeURIComponent(vduNo || 0)}&clientId=${encodeURIComponent(clientId || "")}`, { method: "GET" })
         .then((res) => {
             if (!res.ok) throw new Error("state fetch failed");
             return res.json();
@@ -189,27 +232,36 @@ const renderAvduAlerts = (alerts) => {
  * @param {Object} state - 状態データオブジェクト
  */
 const renderState = (state) => {
-    setText("currentOperator", state.controllerUserName);
-    setText("currentOperatorIp", state.operatorIp);
-    setText("playStatus", state.playStatus);
-    setText("startDateTimeLabel", state.startDateTime);
-    setText("currentReplayTimeLabel", state.currentReplayTime);
-    setText("speedLabel", state.speed ? `${state.speed}x` : "-");
-    setText("lastCommandLabel", state.lastCommand);
-    setText("unitNoLabel", state.unitNo);
-    setText("replayModeLabel", state.replayMode);
-    setText("currentPageIdLabel", state.lastPageId);
-    setText("lastAppliedEventIdLabel", state.lastAppliedOperationId);
-    setText("lastAppliedEventTypeLabel", state.lastAppliedActionType);
-    setText("lastApplyResultLabel", state.lastApplyResult);
-    setText("lastAppliedOccurredAtLabel", state.lastAppliedOccurredAt);
-    setText("lastControlIdLabel", state.lastControlId);
-    setText("lastButtonIdIdLabel", state.lastButtonId);
-    setText("lastValueLabel", state.lastValue);
+    // state が falsy の場合に備える（呼び出し元が空を渡す可能性があるため）
+    if (!state) {
+        console.warn('renderState called with falsy state');
+        state = {};
+    }
+
+    setText("currentOperator", state.controllerUserName || null);
+    setText("currentOperatorIp", state.operatorIp || null);
+    setText("playStatus", state.playStatus || null);
+    setText("startDateTimeLabel", state.startDateTime || null);
+    setText("currentReplayTimeLabel", state.currentReplayTime || null);
+    setText("speedLabel", state.speed ? `${state.speed}x` : null);
+    setText("lastCommandLabel", state.lastCommand || null);
+    setText("unitNoLabel", state.unitNo || null);
+    setText("replayModeLabel", state.replayMode || null);
+    setText("currentPageIdLabel", state.lastPageId || null);
+    setText("lastAppliedEventIdLabel", state.lastAppliedOperationId || null);
+    setText("lastAppliedEventTypeLabel", state.lastAppliedActionType || null);
+    setText("lastApplyResultLabel", state.lastApplyResult || null);
+    setText("lastAppliedOccurredAtLabel", state.lastAppliedOccurredAt || null);
+    setText("lastControlIdLabel", state.lastControlId || null);
+    setText("lastButtonIdIdLabel", state.lastButtonId || null);
+    setText("lastValueLabel", state.lastValue || null);
     applyOperateState(state);
     const frame = getById("replayFrame");
     if (frame && state.lastPageId) {
-        const nextUrl = `${window.location.origin}/ReplayFunction/vdu/${state.selectedVduNo}/${state.lastPageId}.html`;
+        const basePath = getBasePath();
+        // selectedVduNo が無ければ unitNo を代替に使うなどのフォールバックを用意
+        const vdu = (state.selectedVduNo !== undefined && state.selectedVduNo !== null) ? state.selectedVduNo : (state.unitNo !== undefined ? state.unitNo : 0);
+        const nextUrl = `${window.location.origin}${basePath}/vdu/${vdu}/${state.lastPageId}.html`;
         if (frame.getAttribute("src") !== nextUrl) frame.setAttribute("src", nextUrl);
     }
     if (state && state.clientType === "AVDU") renderAvduAlerts(state.avduAlerts || []);
