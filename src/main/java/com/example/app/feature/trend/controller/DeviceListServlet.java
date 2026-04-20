@@ -1,47 +1,40 @@
-package com.example.app.feature.replay.graphic.controller;
+package com.example.app.feature.trend.controller;
 
 import java.io.IOException;
+import java.util.List;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpSession;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.example.app.common.json.JsonUtil;
 import com.example.app.common.runtime.AppRuntime;
 import com.example.app.feature.auth.model.LoginUser;
 import com.example.app.feature.replay.common.dto.ErrorResponse;
-import com.example.app.feature.replay.graphic.dto.ReplayStateResponse;
 
-@WebServlet("/ReplayFunction/replay/state")
-public class ReplayStateServlet extends javax.servlet.http.HttpServlet {
+@WebServlet("/ReplayFunction/trend/devices")
+public class DeviceListServlet extends javax.servlet.http.HttpServlet {
     private static final long serialVersionUID = 1L;
-
-    private static final Logger log = LoggerFactory.getLogger(ReplayStateServlet.class);
 
     @Override
     protected void doGet(javax.servlet.http.HttpServletRequest req,
                          javax.servlet.http.HttpServletResponse resp)
             throws ServletException, IOException {
 
-        log.info("Received state request: {}?{}", req.getRequestURI(), req.getQueryString());
-
         resp.setCharacterEncoding("UTF-8");
         resp.setContentType("application/json");
 
         try {
-            String roomId = req.getParameter("roomId");
-            String clientType = req.getParameter("clientType");
-            int vduNo = parseInt(req.getParameter("vduNo"), 0);
             LoginUser loginUser = getLoginUser(req.getSession(false));
+            if (loginUser == null) {
+                throw new IllegalStateException("ログインしていません");
+            }
 
-            ReplayStateResponse response = AppRuntime.getReplayModule()
-                    .getReplayCoordinator()
-                    .getState(roomId, clientType, vduNo, loginUser);
+            List<String> devices = AppRuntime.getTrendModule()
+                    .getDeviceService()
+                    .findAllDeviceIds();
 
-            JsonUtil.writeValue(resp.getWriter(), response);
+            JsonUtil.writeValue(resp.getWriter(), devices);
 
         } catch (Exception e) {
             resp.setStatus(javax.servlet.http.HttpServletResponse.SC_BAD_REQUEST);
@@ -57,13 +50,5 @@ public class ReplayStateServlet extends javax.servlet.http.HttpServlet {
             return null;
         }
         return (LoginUser) session.getAttribute("replay.loginUser");
-    }
-
-    private int parseInt(String value, int defaultValue) {
-        try {
-            return Integer.parseInt(value);
-        } catch (Exception e) {
-            return defaultValue;
-        }
     }
 }

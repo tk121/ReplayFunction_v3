@@ -18,14 +18,19 @@ public class LogoutServlet extends HttpServlet {
     private static final long serialVersionUID = 1L;
 
     @Override
-    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp)
+            throws ServletException, IOException {
+
         HttpSession session = req.getSession(false);
 
         if (session != null) {
             LoginUser loginUser = (LoginUser) session.getAttribute("replay.loginUser");
 
             if (loginUser != null) {
-                ReplayState state = AppRuntime.getReplaySessionService().getState("replayMode");
+                ReplayState state = AppRuntime.getReplayModule()
+                        .getReplaySessionService()
+                        .getState("replayMode");
+
                 synchronized (state) {
                     if (loginUser.getUserId().equals(state.getControllerUserId())) {
                         state.setControllerUserId(null);
@@ -37,10 +42,6 @@ public class LogoutServlet extends HttpServlet {
             session.invalidate();
         }
 
-        localRedirect(resp, req.getContextPath() + "/login.html");
-    }
-
-    private void localRedirect(HttpServletResponse resp, String url) throws IOException {
-        resp.sendRedirect(url);
+        resp.sendRedirect(req.getContextPath() + "/login.html");
     }
 }

@@ -1,4 +1,4 @@
-package com.example.app.feature.replay.graphic.controller;
+package com.example.app.feature.trend.controller;
 
 import java.io.IOException;
 
@@ -6,40 +6,44 @@ import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpSession;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.example.app.common.json.JsonUtil;
 import com.example.app.common.runtime.AppRuntime;
 import com.example.app.feature.auth.model.LoginUser;
 import com.example.app.feature.replay.common.dto.ErrorResponse;
-import com.example.app.feature.replay.graphic.dto.ReplayStateResponse;
+import com.example.app.feature.trend.dto.TrendDefinitionResponse;
+import com.example.app.feature.trend.dto.TrendSaveRequest;
+import com.example.app.feature.trend.model.TrendDefinition;
 
-@WebServlet("/ReplayFunction/replay/state")
-public class ReplayStateServlet extends javax.servlet.http.HttpServlet {
+@WebServlet("/ReplayFunction/trend/save")
+public class TrendSaveServlet extends javax.servlet.http.HttpServlet {
     private static final long serialVersionUID = 1L;
 
-    private static final Logger log = LoggerFactory.getLogger(ReplayStateServlet.class);
-
     @Override
-    protected void doGet(javax.servlet.http.HttpServletRequest req,
-                         javax.servlet.http.HttpServletResponse resp)
+    protected void doPost(javax.servlet.http.HttpServletRequest req,
+                          javax.servlet.http.HttpServletResponse resp)
             throws ServletException, IOException {
 
-        log.info("Received state request: {}?{}", req.getRequestURI(), req.getQueryString());
-
+        req.setCharacterEncoding("UTF-8");
         resp.setCharacterEncoding("UTF-8");
         resp.setContentType("application/json");
 
         try {
-            String roomId = req.getParameter("roomId");
-            String clientType = req.getParameter("clientType");
-            int vduNo = parseInt(req.getParameter("vduNo"), 0);
             LoginUser loginUser = getLoginUser(req.getSession(false));
+            if (loginUser == null) {
+                throw new IllegalStateException("ログインしていません");
+            }
 
-            ReplayStateResponse response = AppRuntime.getReplayModule()
-                    .getReplayCoordinator()
-                    .getState(roomId, clientType, vduNo, loginUser);
+            TrendSaveRequest requestBody =
+                    JsonUtil.readValue(req.getReader(), TrendSaveRequest.class);
+
+            TrendDefinition saved = AppRuntime.getTrendModule()
+                    .getTrendDefinitionService()
+                    .save(loginUser.getUserId(), requestBody);
+
+            TrendDefinitionResponse response = new TrendDefinitionResponse();
+            response.setTrendId(saved.getTrendId());
+            response.setTrendName(saved.getTrendName());
+            response.setDeviceIds(saved.getDeviceIds());
 
             JsonUtil.writeValue(resp.getWriter(), response);
 
@@ -57,13 +61,5 @@ public class ReplayStateServlet extends javax.servlet.http.HttpServlet {
             return null;
         }
         return (LoginUser) session.getAttribute("replay.loginUser");
-    }
-
-    private int parseInt(String value, int defaultValue) {
-        try {
-            return Integer.parseInt(value);
-        } catch (Exception e) {
-            return defaultValue;
-        }
     }
 }
