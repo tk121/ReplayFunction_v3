@@ -21,15 +21,24 @@ public class LogoutServlet extends HttpServlet {
     protected void doPost(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
 
-        HttpSession session = req.getSession(false);
-
+        HttpSession session = request.getSession(false);
         if (session != null) {
+            AppRuntime runtime = AppRuntime.getInstance();
+            
             LoginUser loginUser = (LoginUser) session.getAttribute("replay.loginUser");
+            
+            String userId = userIdObj != null ? userIdObj.toString() : null;
+
+            runtime.getLoginUserRegistry().logoutBySessionId(session.getId());
 
             if (loginUser != null) {
                 ReplayState state = AppRuntime.getReplayModule()
                         .getReplaySessionService()
                         .getState("replayMode");
+                
+                if (userId != null && !runtime.getLoginUserRegistry().isLoggedIn(userId)) {
+                    runtime.getOnlineUserRegistry().remove(userId);
+                }
 
                 synchronized (state) {
                     if (loginUser.getUserId().equals(state.getControllerUserId())) {

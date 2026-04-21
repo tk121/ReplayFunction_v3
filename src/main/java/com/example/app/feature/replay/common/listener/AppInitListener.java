@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import com.example.app.common.datasource.DataSourceProvider;
 import com.example.app.common.runtime.AppRuntime;
 import com.example.app.feature.auth.AuthModule;
+import com.example.app.feature.auth.session.LoginPolicy;
 import com.example.app.feature.replay.ReplayModule;
 import com.example.app.feature.replay.common.process.ExternalProcessConfigLoader;
 import com.example.app.feature.replay.common.process.ExternalProcessDefinition;
@@ -87,8 +88,11 @@ public class AppInitListener implements ServletContextListener {
 			ReplayExternalProcessService replayExternalProcessService = new ReplayExternalProcessService(
 					graphicProcessService,
 					trendProcessService);
+			
+			LoginPolicy policy = new LoginPolicy(5, 30000L);
 
-			AuthModule authModule = new AuthModule(ds);
+
+			AuthModule authModule = new AuthModule(ds, policy);
 			ReplayModule replayModule = new ReplayModule(ds, replayExternalProcessService);
 			TrendModule trendModule = new TrendModule(
 					ds,

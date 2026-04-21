@@ -15,11 +15,14 @@ import com.example.app.feature.trend.TrendModule;
  * </p>
  */
 public final class AppRuntime {
+	
+	private static AppRuntime instance;
 
     private static DataSource dataSource;
     private static AuthModule authModule;
     private static ReplayModule replayModule;
     private static TrendModule trendModule;
+
 
     private AppRuntime() {
     }
